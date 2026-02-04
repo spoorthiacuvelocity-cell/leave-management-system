@@ -21,4 +21,31 @@ CREATE TABLE leave_requests (
         FOREIGN KEY (approved_by)
         REFERENCES users(user_id)
 );
+-- ==============================
+-- Sample INSERT for all leave types
+-- ==============================
+
+INSERT INTO leave_requests
+(user_id, leave_type, start_date, end_date, number_of_days, status, reason, applied_on, approved_by, approved_on, rejected_on, cancelled_on, proof_document_path, proof_uploaded)
+VALUES
+-- 1. CASUAL leave
+(1, 'CASUAL', '2026-02-10', '2026-02-12', 3, 'PENDING', 'Family function', CURRENT_TIMESTAMP, NULL, NULL, NULL, NULL, NULL, FALSE),
+
+-- 2. SICK leave > 1 day (requires proof)
+(2, 'SICK', '2026-02-15', '2026-02-16', 2, 'APPROVED', 'Fever', CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, NULL, NULL, '/documents/sick_2.pdf', TRUE),
+
+-- 3. EARNED leave
+(3, 'EARNED', '2026-03-01', '2026-03-05', 5, 'PENDING', 'Vacation', CURRENT_TIMESTAMP, NULL, NULL, NULL, NULL, NULL, FALSE),
+
+-- 4. MATERNITY leave (female)
+(4, 'MATERNITY', '2026-04-01', '2026-09-28', 180, 'APPROVED', 'Childbirth', CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, NULL, NULL, '/documents/maternity.pdf', TRUE),
+
+-- 5. PATERNITY leave (male)
+(5, 'PATERNITY', '2026-05-01', '2026-05-15', 15, 'APPROVED', 'Childbirth', CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, NULL, NULL, '/documents/paternity.pdf', TRUE),
+
+-- 6. LOSS_OF_PAY leave
+(6, 'LOSS_OF_PAY', '2026-06-10', '2026-06-12', 3, 'REJECTED', 'Unauthorized leave', CURRENT_TIMESTAMP, 1, NULL, CURRENT_TIMESTAMP, NULL, NULL, FALSE),
+
+-- 7. PERIODS leave (female)
+(7, 'PERIODS', '2026-07-01', '2026-07-02', 2, 'CANCELLED', 'Health reason', CURRENT_TIMESTAMP, NULL, NULL, NULL, CURRENT_TIMESTAMP, NULL, FALSE);
 
