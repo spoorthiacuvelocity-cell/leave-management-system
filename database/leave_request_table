@@ -5,11 +5,13 @@ CREATE TABLE leave_requests (
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     number_of_days INT NOT NULL,
-    status VARCHAR(20) DEFAULT 'PENDING',
+    status VARCHAR(20) DEFAULT 'PENDING', -- PENDING, APPROVED, REJECTED, CANCELLED
     reason TEXT,
     applied_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     approved_by INT,
     approved_on TIMESTAMP,
+    rejected_on TIMESTAMP,
+    cancelled_on TIMESTAMP,
 
     CONSTRAINT fk_leave_user
         FOREIGN KEY (user_id)
