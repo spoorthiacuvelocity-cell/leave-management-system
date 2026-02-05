@@ -1,42 +1,44 @@
 CREATE TABLE configuration (
     config_id SERIAL PRIMARY KEY,
-    leave_type VARCHAR(30) UNIQUE NOT NULL,
-    leaves_per_quarter NUMERIC(3,1) NOT NULL,
-    max_consecutive_leaves INT NOT NULL,
+    leave_type VARCHAR(30) UNIQUE,
+    leaves_per_quarter NUMERIC(3,1),
+    max_consecutive_leaves INT,
+    notice_period_days INT DEFAULT 0,
     proof_required BOOLEAN DEFAULT FALSE,
     proof_required_after_days INT,
     gender_specific VARCHAR(10),
+    resignation_notice_period_days INT DEFAULT 60,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 INSERT INTO configuration
-(leave_type, leaves_per_quarter, max_consecutive_leaves,
- proof_required, proof_required_after_days, gender_specific)
+(
+    leave_type,
+    leaves_per_quarter,
+    max_consecutive_leaves,
+    notice_period_days,
+    proof_required,
+    proof_required_after_days,
+    gender_specific
+)
 VALUES
--- Casual leave: no proof
-('CASUAL', 2.5, 3, FALSE, NULL, NULL),
+-- Casual Leave
+('CASUAL', 2.5, 3, 1, FALSE, NULL, NULL),
 
--- Sick leave: proof required only if > 1 day
-('SICK', 2.5, 5, TRUE, 1, NULL),
+-- Sick Leave (proof required if > 1 day)
+('SICK', 2.5, 5, 0, TRUE, 1, NULL),
 
--- Earned leave: no proof
-('EARNED', 2.5, 10, FALSE, NULL, NULL),
+-- Earned Leave
+('EARNED', 2.5, 10, 7, FALSE, NULL, NULL),
 
--- Maternity leave: proof always required
-('MATERNITY', 0, 180, TRUE, 0, 'FEMALE'),
+-- Maternity Leave
+('MATERNITY', 0, 180, 30, TRUE, 0, 'FEMALE'),
 
--- Paternity leave: proof always required
-('PATERNITY', 0, 15, TRUE, 0, 'MALE'),
+-- Paternity Leave
+('PATERNITY', 0, 15, 15, TRUE, 0, 'MALE'),
 
--- Loss of pay: no proof
-('LOSS_OF_PAY', 0, 30, FALSE, NULL, NULL),
+-- Loss of Pay
+('LOSS_OF_PAY', 0, 30, 0, FALSE, NULL, NULL),
 
--- Period leave: only for females, no proof
-('PERIODS', 2.5, 2, FALSE, NULL, 'FEMALE')
+-- Period Leave
+('PERIODS', 2.5, 2, 0, FALSE, NULL, 'FEMALE');
 
-ON CONFLICT (leave_type)
-DO UPDATE SET
-    leaves_per_quarter = EXCLUDED.leaves_per_quarter,
-    max_consecutive_leaves = EXCLUDED.max_consecutive_leaves,
-    proof_required = EXCLUDED.proof_required,
-    proof_required_after_days = EXCLUDED.proof_required_after_days,
-    gender_specific = EXCLUDED.gender_specific;
