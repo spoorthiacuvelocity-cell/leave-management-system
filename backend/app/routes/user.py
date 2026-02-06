@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.database.postgres import get_db
 from backend.app.models.user import User
+from backend.app.models.leave_balance import LeaveBalance
 from backend.app.schemas.user_schema import UserCreate
 from backend.app.utils.auth_utils import hash_password, get_current_user
 
@@ -11,8 +12,7 @@ router = APIRouter(
     tags=["Users"]
 )
 
-
-# ---------------- CREATE USER (REGISTER) ----------------
+# ---------------- REGISTER USER ----------------
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_user(
     user_data: UserCreate,
@@ -26,7 +26,7 @@ def register_user(
             detail="User already exists"
         )
 
-    # Create new user with hashed password
+    # Create user
     new_user = User(
         name=user_data.name,
         email=user_data.email,
@@ -39,13 +39,21 @@ def register_user(
     db.commit()
     db.refresh(new_user)
 
+    #  CREATE LEAVE BALANCE AUTOMATICALLY
+    leave_balance = LeaveBalance(
+        user_id=new_user.id
+    )
+
+    db.add(leave_balance)
+    db.commit()
+
     return {
         "message": "User registered successfully",
         "user_id": new_user.id
     }
 
 
-# ---------------- GET CURRENT USER PROFILE ----------------
+# ---------------- CURRENT USER PROFILE ----------------
 @router.get("/me")
 def get_my_profile(
     current_user: User = Depends(get_current_user)
