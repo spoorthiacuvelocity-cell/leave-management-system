@@ -4,7 +4,7 @@ from sqlalchemy import (
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from database.postgres import Base
+from backend.database.postgres import Base
 
 
 class LeaveRequest(Base):

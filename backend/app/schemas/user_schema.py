@@ -16,8 +16,13 @@ class UserBase(BaseModel):
 # =========================
 # Create user
 # =========================
-class UserCreate(UserBase):
-    pass
+class UserCreate(BaseModel):
+    name: str
+    email: str
+    phone_number: str
+    password: str
+    role: str
+
 
 
 # =========================

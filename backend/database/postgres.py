@@ -2,7 +2,7 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from app.config import DATABASE_URL
+from backend.app.config import DATABASE_URL
 
 engine = create_engine(DATABASE_URL)
 
@@ -22,7 +22,7 @@ def get_db():
         yield db
     finally:
         db.close()
-from models.user import User
+from backend.app.models.user import User
 
 # This will create all tables defined in models if they don't exist
 Base.metadata.create_all(bind=engine)

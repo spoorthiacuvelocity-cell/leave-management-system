@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from models.leave_request import LeaveRequest
+from backend.app.models.leave_request import LeaveRequest
 
 
 class ApprovalService:

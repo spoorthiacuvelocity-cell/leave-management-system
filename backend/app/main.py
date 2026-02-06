@@ -1,12 +1,31 @@
-## backend/app/main.py
-
 from fastapi import FastAPI
-from backend.routes import auth, user, leave, admin, health
+from fastapi.middleware.cors import CORSMiddleware
+from backend.app.routes import auth, user, leave, admin, health
 
-app = FastAPI(title="Leave Management System")
 
+app = FastAPI(
+    title="Leave Management System",
+    version="1.0.0"
+)
+
+# ---------------- CORS ----------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # change later in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---------------- ROUTES ----------------
+app.include_router(auth.router)
+app.include_router(user.router)
+app.include_router(leave.router)
+app.include_router(admin.router)
 app.include_router(health.router)
-app.include_router(auth.router, prefix="/auth", tags=["Auth"])
-app.include_router(user.router, prefix="/users", tags=["Users"])
-app.include_router(leave.router, prefix="/leave", tags=["Leave"])
-app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+
+
+# ---------------- ROOT ----------------
+@app.get("/")
+def root():
+    return {"message": "Leave Management System Backend is running"}
