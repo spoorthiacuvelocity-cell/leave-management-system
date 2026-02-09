@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.routes import auth, user, leave, admin, health
 
+from backend.app.routes import auth, user, leave, admin, manager
 
+# ✅ CREATE APP FIRST
 app = FastAPI(
     title="Leave Management System",
     version="1.0.0"
@@ -11,7 +12,7 @@ app = FastAPI(
 # ---------------- CORS ----------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # change later in production
+    allow_origins=["*"],  # allow all for now
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,8 +23,7 @@ app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(leave.router)
 app.include_router(admin.router)
-app.include_router(health.router)
-
+app.include_router(manager.router)
 
 # ---------------- ROOT ----------------
 @app.get("/")

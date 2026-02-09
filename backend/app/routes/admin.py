@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.database.postgres import get_db
-from backend.app.models.leave_request import LeaveRequest
+from backend.app.models.leave_request import LeaveRequest, LeaveStatus
 from backend.app.models.leave_balance import LeaveBalance
 from backend.app.models.user import User
 from backend.app.utils.auth_utils import get_current_user
@@ -27,8 +27,15 @@ def approve_leave(
     if not leave:
         raise HTTPException(status_code=404, detail="Leave not found")
 
-    if leave.status != "PENDING":
+    if leave.status != LeaveStatus.PENDING:
         raise HTTPException(status_code=400, detail="Leave already processed")
+
+    # ❗ Priority check: Project Manager approval
+    if leave.approved_by_role == "PROJECT_MANAGER":
+        raise HTTPException(
+            status_code=403,
+            detail="Leave already approved by Project Manager"
+        )
 
     # Calculate leave days
     leave_days = (leave.end_date - leave.start_date).days + 1
@@ -46,15 +53,18 @@ def approve_leave(
             detail="Insufficient leave balance"
         )
 
-    # Deduct leave
+    # Deduct leave balance
     balance.used_leaves += leave_days
     balance.remaining_leaves -= leave_days
 
-    leave.status = "APPROVED"
+    # Approve leave
+    leave.status = LeaveStatus.APPROVED
+    leave.approved_by_role = "ADMIN"
+    leave.approved_by_id = current_user.id
 
     db.commit()
 
-    return {"message": "Leave approved successfully"}
+    return {"message": "Leave approved successfully by Admin"}
 
 
 # ---------------- REJECT LEAVE ----------------
@@ -71,10 +81,13 @@ def reject_leave(
     if not leave:
         raise HTTPException(status_code=404, detail="Leave not found")
 
-    if leave.status != "PENDING":
+    if leave.status != LeaveStatus.PENDING:
         raise HTTPException(status_code=400, detail="Leave already processed")
 
-    leave.status = "REJECTED"
+    leave.status = LeaveStatus.REJECTED
+    leave.approved_by_role = "ADMIN"
+    leave.approved_by_id = current_user.id
+
     db.commit()
 
-    return {"message": "Leave rejected successfully"}
+    return {"message": "Leave rejected successfully by Admin"}
