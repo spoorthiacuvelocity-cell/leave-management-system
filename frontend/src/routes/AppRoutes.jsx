@@ -17,9 +17,11 @@ import AllLeaveApprovals from "../pages/admin/AllLeaveApprovals";
 
 import ProtectedRoute from "../auth/ProtectedRoute";
 import RoleProtectedRoute from "../auth/RoleProtectedRoute";
+<Route path="/" element={<Login />} />
 
 const AppRoutes = () => {
   return (
+
     <Routes>
       {/* Public */}
       <Route path="/login" element={<Login />} />
