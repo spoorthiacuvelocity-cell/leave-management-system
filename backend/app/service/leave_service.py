@@ -19,7 +19,7 @@ class LeaveService:
 
 
     @staticmethod
-    def apply_leave(
+    async def apply_leave(
         db: Session,
         user_id: int,
         leave_type: str,

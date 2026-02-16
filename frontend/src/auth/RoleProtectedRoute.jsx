@@ -5,7 +5,7 @@ const RoleProtectedRoute = ({ allowedRoles, children }) => {
   const { role } = useAuth();
 
   if (!allowedRoles.includes(role)) {
-    return <Navigate to="/not-authorized" />;
+    return <Navigate to="/not-authorized" replace />;
   }
 
   return children;

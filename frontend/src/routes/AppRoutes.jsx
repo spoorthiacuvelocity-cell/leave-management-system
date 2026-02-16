@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "../auth/Login";
 import Register from "../auth/Register";
@@ -17,12 +17,14 @@ import AllLeaveApprovals from "../pages/admin/AllLeaveApprovals";
 
 import ProtectedRoute from "../auth/ProtectedRoute";
 import RoleProtectedRoute from "../auth/RoleProtectedRoute";
-<Route path="/" element={<Login />} />
 
 const AppRoutes = () => {
   return (
-
     <Routes>
+
+      {/* Default route */}
+      <Route path="/" element={<Navigate to="/login" />} />
+
       {/* Public */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
@@ -118,6 +120,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
     </Routes>
   );
 };
