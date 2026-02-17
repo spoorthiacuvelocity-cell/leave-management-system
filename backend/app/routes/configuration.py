@@ -41,6 +41,7 @@ def update_config(
     if not config:
         raise HTTPException(status_code=404, detail="Leave type not found")
 
+    # Leave Settings
     if request.leaves_per_quarter is not None:
         config.leaves_per_quarter = request.leaves_per_quarter
 
@@ -55,6 +56,19 @@ def update_config(
 
     if request.proof_required_after_days is not None:
         config.proof_required_after_days = request.proof_required_after_days
+
+    # 🔥 Email Settings
+    if request.smtp_email is not None:
+        config.smtp_email = request.smtp_email
+
+    if request.smtp_password is not None:
+        config.smtp_password = request.smtp_password
+
+    if request.smtp_server is not None:
+        config.smtp_server = request.smtp_server
+
+    if request.smtp_port is not None:
+        config.smtp_port = request.smtp_port
 
     db.commit()
 

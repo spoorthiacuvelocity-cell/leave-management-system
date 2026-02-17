@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import date
 from backend.database.postgres import get_db
@@ -9,14 +9,13 @@ from backend.app.models.user import User
 from backend.app.models.leave_logs import LeaveLog
 from backend.app.schemas.leave_schema import LeaveCreate
 from backend.app.utils.auth_utils import get_current_user
-from fastapi.responses import StreamingResponse
-import csv
-import io
-from backend.app.utils.email_service import send_email
+from backend.app.utils.email_utils import send_email
+
 router = APIRouter(
     prefix="/leave",
     tags=["Leave"]
 )
+
 
 # ================= HELPER =================
 def get_quarter(input_date):
@@ -35,10 +34,11 @@ def get_quarter(input_date):
 @router.post("/apply")
 async def apply_leave(
     request: LeaveCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # -------- Overlapping Check --------
+
     overlapping_leave = db.query(LeaveRequest).filter(
         LeaveRequest.user_id == current_user.id,
         LeaveRequest.status.in_(["Pending", "Approved"]),
@@ -52,7 +52,6 @@ async def apply_leave(
             detail="You already have leave during this period"
         )
 
-    # -------- Config Check --------
     config = db.query(Configuration).filter(
         Configuration.leave_type == request.leave_type
     ).first()
@@ -60,18 +59,6 @@ async def apply_leave(
     if not config:
         raise HTTPException(status_code=400, detail="Invalid leave type")
 
-    # -------- Gender Validation --------
-    if config.gender_specific:
-        if not current_user.gender:
-            raise HTTPException(status_code=400, detail="User gender not defined")
-
-        if current_user.gender.upper() != config.gender_specific.upper():
-            raise HTTPException(
-                status_code=403,
-                detail=f"{request.leave_type} leave only for {config.gender_specific}"
-            )
-
-    # -------- Notice Period Validation --------
     if config.notice_period_days and config.notice_period_days > 0:
         today = date.today()
         days_difference = (request.start_date - today).days
@@ -82,20 +69,10 @@ async def apply_leave(
                 detail=f"{config.leave_type} requires {config.notice_period_days} days notice"
             )
 
-    # -------- Leave Days Calculation --------
     leave_days = (request.end_date - request.start_date).days + 1
     if leave_days <= 0:
         raise HTTPException(status_code=400, detail="Invalid date range")
 
-    # -------- Max Consecutive Check --------
-    if config.max_consecutive_leaves:
-        if leave_days > config.max_consecutive_leaves:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Maximum consecutive leaves allowed is {config.max_consecutive_leaves}"
-            )
-
-    # -------- Quarterly Limit Check --------
     year = request.start_date.year
     quarter = get_quarter(request.start_date)
 
@@ -114,7 +91,6 @@ async def apply_leave(
             detail="Quarterly leave limit exceeded"
         )
 
-    # -------- Create Leave --------
     leave = LeaveRequest(
         leave_type=request.leave_type,
         start_date=request.start_date,
@@ -127,15 +103,30 @@ async def apply_leave(
     db.add(leave)
     db.commit()
     db.refresh(leave)
-    
 
-    await send_email(
-    subject="Leave Application Submitted",
-    recipients=[current_user.email],
-    body=f"Your leave from {request.start_date} to {request.end_date} has been submitted."
-)
+    # -------- Send Email To Manager --------
+    manager = db.query(User).filter(
+        User.id == current_user.manager_id
+    ).first()
 
-    # -------- Log --------
+    if manager:
+        background_tasks.add_task(
+            send_email,
+            db,  # IMPORTANT
+            manager.email,
+            "New Leave Request",
+            f"{current_user.name} applied for leave from {request.start_date} to {request.end_date}"
+        )
+
+    # -------- Send Confirmation To Employee --------
+    background_tasks.add_task(
+        send_email,
+        db,  # IMPORTANT
+        current_user.email,
+        "Leave Application Submitted",
+        f"Your leave from {request.start_date} to {request.end_date} has been submitted."
+    )
+
     log = LeaveLog(
         leave_id=leave.id,
         action="Applied",
@@ -145,7 +136,6 @@ async def apply_leave(
     db.commit()
 
     return {"message": "Leave applied successfully"}
-
 
 # ================= VIEW ALL LEAVES =================
 @router.get("/all")
@@ -170,20 +160,9 @@ def get_all_leaves(
     raise HTTPException(status_code=403, detail="Not authorized")
 
 
-# ================= VIEW MY LEAVES =================
-@router.get("/my-leaves")
-def get_my_leaves(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    return db.query(LeaveRequest).filter(
-        LeaveRequest.user_id == current_user.id
-    ).all()
-
-
 # ================= CANCEL LEAVE =================
 @router.put("/cancel/{leave_id}")
-def cancel_leave(
+async def cancel_leave(
     leave_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -213,81 +192,3 @@ def cancel_leave(
     db.commit()
 
     return {"message": "Leave cancelled successfully"}
-
-
-# ================= ADMIN APPLY FOR USER =================
-@router.post("/admin/apply/{user_id}")
-async def admin_apply_leave(
-    user_id: int,
-    request: LeaveCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    leave = LeaveRequest(
-        leave_type=request.leave_type,
-        start_date=request.start_date,
-        end_date=request.end_date,
-        reason=request.reason,
-        user_id=user.id,
-        status="Approved"
-    )
-
-    db.add(leave)
-    db.commit()
-# ================= ADMIN DASHBOARD =================
-@router.get("/admin/dashboard")
-def admin_dashboard(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    return {
-        "total_users": db.query(User).count(),
-        "total_leaves": db.query(LeaveRequest).count(),
-        "pending": db.query(LeaveRequest).filter(LeaveRequest.status == "Pending").count(),
-        "approved": db.query(LeaveRequest).filter(LeaveRequest.status == "Approved").count(),
-        "rejected": db.query(LeaveRequest).filter(LeaveRequest.status == "Rejected").count(),
-    }
-
-
-# ================= EXPORT CSV =================
-@router.get("/admin/export")
-def export_leaves(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    leaves = db.query(LeaveRequest).all()
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["ID", "User", "Type", "Start", "End", "Status"])
-
-    for leave in leaves:
-        writer.writerow([
-            leave.id,
-            leave.user_id,
-            leave.leave_type,
-            leave.start_date,
-            leave.end_date,
-            leave.status
-        ])
-
-    output.seek(0)
-
-    return StreamingResponse(
-        output,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=leaves.csv"}
-    )

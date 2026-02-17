@@ -10,4 +10,4 @@ async def send_email(subject: str, recipients: list, body: str):
     )
 
     fm = FastMail(conf)
-    await fm.send_message(message)
+    fm.send_message(message)
