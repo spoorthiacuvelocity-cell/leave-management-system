@@ -2,20 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import date
 from backend.database.postgres import get_db
-from backend.app.models.configuration import Configuration
 from backend.app.models.leave_request import LeaveRequest
 from backend.app.models.leave_balance import LeaveBalance
 from backend.app.models.user import User
 from backend.app.models.leave_logs import LeaveLog
+from backend.app.models.leave_types import LeaveType
 from backend.app.schemas.leave_schema import LeaveCreate
 from backend.app.utils.auth_utils import get_current_user
-from backend.app.utils.email_utils import send_email
-
 router = APIRouter(
     prefix="/leave",
     tags=["Leave"]
 )
-
 
 # ================= HELPER =================
 def get_quarter(input_date):
@@ -39,6 +36,7 @@ async def apply_leave(
     current_user: User = Depends(get_current_user)
 ):
 
+    # ✅ 1. Overlapping Leave Check
     overlapping_leave = db.query(LeaveRequest).filter(
         LeaveRequest.user_id == current_user.id,
         LeaveRequest.status.in_(["Pending", "Approved"]),
@@ -52,27 +50,57 @@ async def apply_leave(
             detail="You already have leave during this period"
         )
 
-    config = db.query(Configuration).filter(
-        Configuration.leave_type == request.leave_type
+    # ✅ 2. Fetch Leave Type Rules
+    leave_type_config = db.query(LeaveType).filter(
+        LeaveType.leave_name == request.leave_type
     ).first()
 
-    if not config:
+    if not leave_type_config:
         raise HTTPException(status_code=400, detail="Invalid leave type")
 
-    if config.notice_period_days and config.notice_period_days > 0:
+    # ✅ 3. Notice Period Check
+    if leave_type_config.notice_period_days and leave_type_config.notice_period_days > 0:
         today = date.today()
         days_difference = (request.start_date - today).days
 
-        if days_difference < config.notice_period_days:
+        if days_difference < leave_type_config.notice_period_days:
             raise HTTPException(
                 status_code=400,
-                detail=f"{config.leave_type} requires {config.notice_period_days} days notice"
+                detail=f"{request.leave_type} requires {leave_type_config.notice_period_days} days notice"
             )
 
+    # ✅ 4. Validate Date Range
     leave_days = (request.end_date - request.start_date).days + 1
     if leave_days <= 0:
         raise HTTPException(status_code=400, detail="Invalid date range")
 
+    # ✅ 5. Max Consecutive Leaves Check
+    if leave_type_config.max_consecutive_leaves:
+        if leave_days > leave_type_config.max_consecutive_leaves:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Maximum {leave_type_config.max_consecutive_leaves} consecutive leaves allowed"
+            )
+
+    # ✅ 6. Gender Specific Check
+    if leave_type_config.gender_specific:
+        if current_user.gender != leave_type_config.gender_specific:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{request.leave_type} leave is only for {leave_type_config.gender_specific}"
+            )
+
+    # ✅ 7. Proof Required Check
+    if leave_type_config.proof_required:
+        if leave_type_config.proof_required_after_days:
+            if leave_days > leave_type_config.proof_required_after_days:
+                if not request.proof_document:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Proof document required for this leave"
+                    )
+
+    # ✅ 8. Quarterly Balance Check
     year = request.start_date.year
     quarter = get_quarter(request.start_date)
 
@@ -85,17 +113,20 @@ async def apply_leave(
 
     leaves_taken = float(balance.leaves_taken) if balance else 0
 
-    if leaves_taken + leave_days > float(config.leaves_per_quarter):
-        raise HTTPException(
-            status_code=400,
-            detail="Quarterly leave limit exceeded"
-        )
+    if leave_type_config.leaves_per_quarter:
+        if leaves_taken + leave_days > float(leave_type_config.leaves_per_quarter):
+            raise HTTPException(
+                status_code=400,
+                detail="Quarterly leave limit exceeded"
+            )
 
+    # ✅ 9. Create Leave
     leave = LeaveRequest(
         leave_type=request.leave_type,
         start_date=request.start_date,
         end_date=request.end_date,
         reason=request.reason,
+        proof_document=request.proof_document,
         user_id=current_user.id,
         status="Pending"
     )
@@ -104,29 +135,7 @@ async def apply_leave(
     db.commit()
     db.refresh(leave)
 
-    # -------- Send Email To Manager --------
-    manager = db.query(User).filter(
-        User.id == current_user.manager_id
-    ).first()
-
-    if manager:
-        background_tasks.add_task(
-            send_email,
-            db,  # IMPORTANT
-            manager.email,
-            "New Leave Request",
-            f"{current_user.name} applied for leave from {request.start_date} to {request.end_date}"
-        )
-
-    # -------- Send Confirmation To Employee --------
-    background_tasks.add_task(
-        send_email,
-        db,  # IMPORTANT
-        current_user.email,
-        "Leave Application Submitted",
-        f"Your leave from {request.start_date} to {request.end_date} has been submitted."
-    )
-
+    # ✅ 10. Add Log
     log = LeaveLog(
         leave_id=leave.id,
         action="Applied",
@@ -136,6 +145,7 @@ async def apply_leave(
     db.commit()
 
     return {"message": "Leave applied successfully"}
+
 
 # ================= VIEW ALL LEAVES =================
 @router.get("/all")

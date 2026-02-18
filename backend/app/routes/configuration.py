@@ -5,7 +5,8 @@ from backend.app.schemas.config import ConfigUpdate
 from backend.app.models.configuration import Configuration
 from backend.app.utils.auth_utils import get_current_user
 from backend.app.models.user import User
-
+from backend.app.models.leave_types import LeaveType
+from backend.app.config import config
 router = APIRouter(
     prefix="/config",
     tags=["Configuration"]
@@ -34,9 +35,10 @@ def update_config(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    config = db.query(Configuration).filter(
-        Configuration.leave_type == leave_type.upper()
+    leave_type_config = db.query(LeaveType).filter(
+    LeaveType.leave_name == request.leave_type
     ).first()
+
 
     if not config:
         raise HTTPException(status_code=404, detail="Leave type not found")

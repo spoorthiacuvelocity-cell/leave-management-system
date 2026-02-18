@@ -20,35 +20,30 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # =========================
 @router.post("/register")
 def register(request: RegisterSchema, db: Session = Depends(get_db)):
-    # Check if user already exists
-    existing_user = db.query(User).filter(User.email == request.email).first()
+
+    existing_user = db.query(User).filter(
+        User.email == request.email
+    ).first()
+
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already exists",
-        )
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    hashed_password = hash_password(request.password)
 
     new_user = User(
+        name=request.name,          # ✅ IMPORTANT
         email=request.email,
-        password=hash_password(request.password),
+        password=hashed_password,
         role=request.role,
+        gender=request.gender,      # ✅ IMPORTANT
+        manager_id=None
     )
 
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    # Create default leave balance
-    default_balance = LeaveBalance(
-    leave_type="Sick Leave",
-    total_days=10,
-    user_id=new_user.id
-    )
-
-    db.add(default_balance)
-    db.commit()
 
     return {"message": "User registered successfully"}
-
 
 # =========================
 # LOGIN

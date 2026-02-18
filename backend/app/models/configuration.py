@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Numeric, TIMESTAMP
+from sqlalchemy import Column, Integer, String, Boolean, Numeric, TIMESTAMP, Text
 from backend.database.postgres import Base
 from sqlalchemy.sql import func
 
@@ -7,21 +7,14 @@ class Configuration(Base):
     __tablename__ = "configuration"
 
     config_id = Column(Integer, primary_key=True, index=True)
-
-    # Leave Settings
-    leave_type = Column(String(30), unique=True)
-    leaves_per_quarter = Column(Numeric(3, 1))
-    max_consecutive_leaves = Column(Integer)
-    notice_period_days = Column(Integer, default=0)
-    proof_required = Column(Boolean, default=False)
-    proof_required_after_days = Column(Integer)
-    gender_specific = Column(String(10))
-    resignation_notice_period_days = Column(Integer, default=60)
+    config_key = Column(String(100), unique=True, nullable=False)
+    config_value = Column(Text)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_on = Column(TIMESTAMP, nullable=True)
+    updated_by = Column(String(100), nullable=True)
 
     # 🔥 NEW EMAIL SETTINGS
     smtp_email = Column(String, nullable=True)
     smtp_password = Column(String, nullable=True)
     smtp_server = Column(String, default="smtp.gmail.com")
     smtp_port = Column(Integer, default=587)
-
-    created_at = Column(TIMESTAMP, server_default=func.now())

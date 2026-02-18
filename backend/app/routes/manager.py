@@ -8,6 +8,7 @@ from backend.app.models.leave_logs import LeaveLog
 from backend.app.models.user import User
 from backend.app.utils.auth_utils import get_current_user
 from backend.app.utils.email_utils import send_email
+from backend.app.models.leave_types import LeaveType
 
 router = APIRouter(
     prefix="/manager",

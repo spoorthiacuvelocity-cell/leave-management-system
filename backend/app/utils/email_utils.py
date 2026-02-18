@@ -2,15 +2,14 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from sqlalchemy.orm import Session
-from backend.app.models.configuration import Configuration
-
-
+from backend.app.models.leave_types import LeaveType
+from backend.app.config import config
+from fastapi import request
 def send_email(db: Session, to_email: str, subject: str, body: str):
     # Get SMTP configuration from DB
-    config = db.query(Configuration).filter(
-        Configuration.leave_type == "SYSTEM"
+    leave_type_config = db.query(LeaveType).filter(
+    LeaveType.leave_name == request.leave_type
     ).first()
-
     if not config or not config.smtp_email:
         print("SMTP not configured in database")
         return

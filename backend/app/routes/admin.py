@@ -8,6 +8,8 @@ from backend.app.models.leave_balance import LeaveBalance
 from backend.app.models.user import User
 from backend.app.utils.auth_utils import get_current_user
 from backend.app.utils.email_utils import send_email
+from backend.app.models.leave_types import LeaveType
+from backend.app.utils.email_service import send_email
 
 router = APIRouter(
     prefix="/admin",
