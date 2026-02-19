@@ -1,27 +1,29 @@
 import smtplib
 from email.mime.text import MIMEText
 from sqlalchemy.orm import Session
+
 from backend.app.models.configuration import Configuration
 
 
-def get_email_config(db: Session):
-    email = db.query(Configuration).filter(
-        Configuration.config_parameter == "MFA_EMAIL"
+# ================= GET CONFIG VALUE =================
+def get_config_value(db: Session, key: str):
+    config = db.query(Configuration).filter(
+        Configuration.config_parameter == key
     ).first()
 
-    password = db.query(Configuration).filter(
-        Configuration.config_parameter == "MFA_EMAIL_PASSWORD"
-    ).first()
-
-    if not email or not password:
-        raise Exception("Email configuration not found in database")
-
-    return email.config_value, password.config_value
+    return config.config_value if config else None
 
 
+# ================= SEND EMAIL =================
 def send_email(db: Session, to_email: str, subject: str, body: str):
 
-    sender_email, sender_password = get_email_config(db)
+    sender_email = get_config_value(db, "mfa_email")
+    sender_password = get_config_value(db, "mfa_email_password")
+    smtp_server = get_config_value(db, "smtp_server") or "smtp.gmail.com"
+    smtp_port = int(get_config_value(db, "smtp_port") or 587)
+
+    if not sender_email or not sender_password:
+        raise Exception("Email configuration not found in database")
 
     msg = MIMEText(body)
     msg["Subject"] = subject
@@ -29,12 +31,14 @@ def send_email(db: Session, to_email: str, subject: str, body: str):
     msg["To"] = to_email
 
     try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(sender_email, sender_password)
         server.sendmail(sender_email, [to_email], msg.as_string())
         server.quit()
+
         print("Email sent successfully")
 
     except Exception as e:
         print("Email failed:", str(e))
+        raise Exception("Email sending failed")

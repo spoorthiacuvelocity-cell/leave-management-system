@@ -5,8 +5,8 @@ from backend.app.schemas.config import ConfigUpdate
 from backend.app.models.configuration import Configuration
 from backend.app.utils.auth_utils import get_current_user
 from backend.app.models.user import User
-from backend.app.models.leave_types import LeaveType
-from backend.app.config import config
+from datetime import datetime
+
 router = APIRouter(
     prefix="/config",
     tags=["Configuration"]
@@ -24,10 +24,27 @@ def get_all_configs(
     return db.query(Configuration).all()
 
 
+# ================= GET SINGLE CONFIG =================
+@router.get("/{key}")
+def get_config(
+    key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    config = db.query(Configuration).filter(
+        Configuration.config_parameter == key
+    ).first()
+
+    if not config:
+        raise HTTPException(status_code=404, detail="Config not found")
+
+    return config
+
+
 # ================= UPDATE CONFIG =================
-@router.put("/update/{leave_type}")
+@router.put("/{key}")
 def update_config(
-    leave_type: str,
+    key: str,
     request: ConfigUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -35,42 +52,16 @@ def update_config(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    leave_type_config = db.query(LeaveType).filter(
-    LeaveType.leave_name == request.leave_type
+    config = db.query(Configuration).filter(
+        Configuration.config_parameter == key
     ).first()
 
-
     if not config:
-        raise HTTPException(status_code=404, detail="Leave type not found")
+        raise HTTPException(status_code=404, detail="Config not found")
 
-    # Leave Settings
-    if request.leaves_per_quarter is not None:
-        config.leaves_per_quarter = request.leaves_per_quarter
-
-    if request.max_consecutive_leaves is not None:
-        config.max_consecutive_leaves = request.max_consecutive_leaves
-
-    if request.notice_period_days is not None:
-        config.notice_period_days = request.notice_period_days
-
-    if request.proof_required is not None:
-        config.proof_required = request.proof_required
-
-    if request.proof_required_after_days is not None:
-        config.proof_required_after_days = request.proof_required_after_days
-
-    # 🔥 Email Settings
-    if request.smtp_email is not None:
-        config.smtp_email = request.smtp_email
-
-    if request.smtp_password is not None:
-        config.smtp_password = request.smtp_password
-
-    if request.smtp_server is not None:
-        config.smtp_server = request.smtp_server
-
-    if request.smtp_port is not None:
-        config.smtp_port = request.smtp_port
+    config.config_value = request.config_value
+    config.updated_at = datetime.utcnow()
+    config.updated_by = current_user.email
 
     db.commit()
 

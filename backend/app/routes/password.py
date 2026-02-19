@@ -42,6 +42,7 @@ async def forgot_password(
 
     background_tasks.add_task(
         send_email,
+        db,
         user.email,
         "Password Reset Request",
         f"Click this link to reset your password:\n{reset_link}"

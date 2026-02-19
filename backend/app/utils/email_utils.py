@@ -1,39 +1,38 @@
 import smtplib
 from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from sqlalchemy.orm import Session
-from backend.app.models.leave_types import LeaveType
-from backend.app.config import config
-from fastapi import request
-def send_email(db: Session, to_email: str, subject: str, body: str):
-    # Get SMTP configuration from DB
-    leave_type_config = db.query(LeaveType).filter(
-    LeaveType.leave_name == request.leave_type
-    ).first()
-    if not config or not config.smtp_email:
-        print("SMTP not configured in database")
-        return
 
-    smtp_email = config.smtp_email
-    smtp_password = config.smtp_password
-    smtp_server = config.smtp_server or "smtp.gmail.com"
-    smtp_port = config.smtp_port or 587
+from backend.app.models.configuration import Configuration
+
+
+def get_config_value(db: Session, key: str):
+    config = db.query(Configuration).filter(
+        Configuration.config_parameter == key
+    ).first()
+
+    return config.config_value if config else None
+
+
+def send_email(db: Session, to_email: str, subject: str, body: str):
+
+    smtp_email = get_config_value(db, "mfa_email")
+    smtp_password = get_config_value(db, "mfa_email_password")
+    smtp_server = get_config_value(db, "smtp_server") or "smtp.gmail.com"
+    smtp_port = int(get_config_value(db, "smtp_port") or 587)
+
+    if not smtp_email or not smtp_password:
+        raise Exception("Email configuration not set")
+
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = smtp_email
+    msg["To"] = to_email
 
     try:
-        msg = MIMEMultipart()
-        msg["From"] = smtp_email
-        msg["To"] = to_email
-        msg["Subject"] = subject
-
-        msg.attach(MIMEText(body, "plain"))
-
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(smtp_email, smtp_password)
         server.sendmail(smtp_email, to_email, msg.as_string())
         server.quit()
-
-        print("Email sent successfully")
-
     except Exception as e:
-        print("Email sending failed:", str(e))
+        raise Exception(f"Email sending failed: {str(e)}")

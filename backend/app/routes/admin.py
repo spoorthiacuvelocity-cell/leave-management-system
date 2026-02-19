@@ -1,22 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from datetime import datetime
-from backend.app.models.leave_logs import LeaveLog
+
 from backend.database.postgres import get_db
 from backend.app.models.leave_request import LeaveRequest
-from backend.app.models.leave_balance import LeaveBalance
+from backend.app.models.leave_logs import LeaveLog
 from backend.app.models.user import User
 from backend.app.utils.auth_utils import get_current_user
 from backend.app.utils.email_utils import send_email
-from backend.app.models.leave_types import LeaveType
-from backend.app.utils.email_service import send_email
+from backend.app.service.approval_service import ApprovalService
 
 router = APIRouter(
     prefix="/admin",
-    tags=["admin"]
+    tags=["Admin"]
 )
 
-# ================= APPROVE LEAVE =================
+
 @router.put("/leave/{leave_id}/approve")
 async def approve_leave(
     leave_id: int,
@@ -35,16 +33,19 @@ async def approve_leave(
     if not leave:
         raise HTTPException(status_code=404, detail="Leave not found")
 
-    if leave.status != "pending":
-        raise HTTPException(
-            status_code=400,
-            detail="Only pending leave can be approved"
-        )
+    result = ApprovalService.approve_leave(
+        db,
+        leave_id,
+        approver_role="admin",
+        approver_id=current_user.id
+    )
 
-    leave.status = "approved"
-    leave.approved_by_role = "admin"
-    leave.approved_by_id = current_user.id
-
+    log = LeaveLog(
+        leave_id=leave_id,
+        action="Approved by Admin",
+        performed_by=current_user.id
+    )
+    db.add(log)
     db.commit()
 
     leave_owner = db.query(User).filter(
@@ -54,17 +55,17 @@ async def approve_leave(
     if leave_owner:
         background_tasks.add_task(
             send_email,
-            db,  # IMPORTANT
+            db,
             leave_owner.email,
             "Leave Approved",
-            "Your leave has been approved."
+            f"Your leave from {leave.start_date} to {leave.end_date} has been approved by Admin."
         )
 
-    return {"message": "Leave approved successfully"}
+    return result
 
-# ================= REJECT LEAVE =================
+
 @router.put("/leave/{leave_id}/reject")
-def reject_leave(
+async def reject_leave(
     leave_id: int,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
@@ -81,34 +82,32 @@ def reject_leave(
     if not leave:
         raise HTTPException(status_code=404, detail="Leave not found")
 
-    if leave.status != "pending":
-        raise HTTPException(
-            status_code=400,
-            detail="Only pending leave can be rejected"
-        )
-
-    leave.status = "rejected"
-    leave.approved_by_role = "admin"
-    leave.approved_by_id = current_user.id
-    leave.approved_at = datetime.utcnow()
-
-    log = LeaveLog(
-        leave_id=leave.id,
-        action="Rejected",
-        performed_by=current_user.id
+    result = ApprovalService.reject_leave(
+        db,
+        leave_id,
+        approver_role="admin",
+        approver_id=current_user.id
     )
 
+    log = LeaveLog(
+        leave_id=leave_id,
+        action="Rejected by Admin",
+        performed_by=current_user.id
+    )
     db.add(log)
     db.commit()
 
-    # Send email in background
-    leave_owner = db.query(User).filter(User.id == leave.user_id).first()
+    leave_owner = db.query(User).filter(
+        User.id == leave.user_id
+    ).first()
 
-    background_tasks.add_task(
-        send_email,
-        leave_owner.email,
-        "Leave Rejected",
-        "Your leave has been rejected by Admin."
-    )
+    if leave_owner:
+        background_tasks.add_task(
+            send_email,
+            db,
+            leave_owner.email,
+            "Leave Rejected",
+            f"Your leave from {leave.start_date} to {leave.end_date} has been rejected by Admin."
+        )
 
-    return {"message": "Leave rejected successfully by admin"}
+    return result

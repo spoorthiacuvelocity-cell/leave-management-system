@@ -12,4 +12,5 @@ class LeaveRequest(Base):
     status = Column(String, default="Pending")  
     user_id = Column(Integer, ForeignKey("users.id"))
     proof_document = Column(String, nullable=True)
+    number_of_days = Column(Integer, nullable=False)
 

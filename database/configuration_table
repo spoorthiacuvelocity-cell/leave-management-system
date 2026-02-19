@@ -1,44 +1,46 @@
 CREATE TABLE configuration (
-    config_id SERIAL PRIMARY KEY,
-    leave_type VARCHAR(30) UNIQUE,
-    leaves_per_quarter NUMERIC(3,1),
-    max_consecutive_leaves INT,
-    notice_period_days INT DEFAULT 0,
-    proof_required BOOLEAN DEFAULT FALSE,
-    proof_required_after_days INT,
-    gender_specific VARCHAR(10),
-    resignation_notice_period_days INT DEFAULT 60,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id SERIAL PRIMARY KEY,
+    config_parameter VARCHAR(255) UNIQUE NOT NULL,
+    config_value TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(100)
 );
-INSERT INTO configuration
-(
-    leave_type,
-    leaves_per_quarter,
-    max_consecutive_leaves,
-    notice_period_days,
-    proof_required,
-    proof_required_after_days,
-    gender_specific
-)
-VALUES
--- Casual Leave
-('CASUAL', 2.5, 3, 1, FALSE, NULL, NULL),
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('number_of_leaves', '24');
 
--- Sick Leave (proof required if > 1 day)
-('SICK', 2.5, 5, 0, TRUE, 1, NULL),
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('mfa_email', 'hr@company.com');
 
--- Earned Leave
-('EARNED', 2.5, 10, 7, FALSE, NULL, NULL),
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('mfa_email_password', 'password123');
 
--- Maternity Leave
-('MATERNITY', 0, 180, 30, TRUE, 0, 'FEMALE'),
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('mfa_phone_number', '9876543210');
 
--- Paternity Leave
-('PATERNITY', 0, 15, 15, TRUE, 0, 'MALE'),
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('company_notice_period', '60');
 
--- Loss of Pay
-('LOSS_OF_PAY', 0, 30, 0, FALSE, NULL, NULL),
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('resignation_notice_period', '30');
 
--- Period Leave
-('PERIODS', 2.5, 2, 0, FALSE, NULL, 'FEMALE');
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('leave_name', 'Sick Leave');
 
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('leave_per_quarter', '6');
+
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('maximum_consecutive_leave', '10');
+
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('notice_period_per_days', '15');
+
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('proof_required', 'true');
+
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('proof_required_after_days', '3');
+
+INSERT INTO configuration (config_parameter, config_value)
+VALUES ('gender_specific', 'Female');
