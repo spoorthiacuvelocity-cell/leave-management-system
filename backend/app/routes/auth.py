@@ -61,6 +61,20 @@ def login(
             detail="Invalid credentials",
         )
 
+    # 🔥 Block login if resignation approved
+    if user.resignation_status and user.resignation_status.upper() == "APPROVED":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your resignation has been approved. Please contact HR.",
+        )
+
+    # 🔥 Block inactive users
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is deactivated. Please contact HR.",
+        )
+
     access_token = create_access_token(
         data={"sub": str(user.id), "role": user.role}
     )
@@ -69,4 +83,3 @@ def login(
         "access_token": access_token,
         "token_type": "bearer",
     }
-

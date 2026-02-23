@@ -1,13 +1,15 @@
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from backend.database.postgres import get_db
 from backend.app.models.user import User
+from backend.app.models.configuration import Configuration
 from backend.app.config import SECRET_KEY, ALGORITHM
+
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -16,17 +18,24 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
-# Hash password
+# ================= HELPER FUNCTION =================
+def get_config(db: Session, key: str):
+    config = db.query(Configuration).filter(
+        Configuration.config_parameter == key
+    ).first()
+    return config.config_value if config else None
+
+
+# ================= PASSWORD =================
 def hash_password(password: str):
     return pwd_context.hash(password)
 
 
-# Verify password
 def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
 
-# Create JWT token
+# ================= CREATE TOKEN =================
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
 
@@ -39,9 +48,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-
-
-# Get current logged-in user
+# ================= GET CURRENT USER =================
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
@@ -65,5 +72,19 @@ def get_current_user(
 
     if user is None:
         raise credentials_exception
+
+    # 🔥 BLOCK LOGIN IMMEDIATELY IF RESIGNATION APPROVED
+    if user.resignation_status == "APPROVED":
+        raise HTTPException(
+            status_code=403,
+            detail="Your resignation has been approved. Please contact HR."
+        )
+
+    # 🔥 Block inactive users
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account is deactivated. Please contact HR."
+        )
 
     return user

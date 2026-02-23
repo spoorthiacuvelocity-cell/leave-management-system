@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from backend.app.models.configuration import Configuration
 
 
+# ================= GET CONFIG VALUE =================
 def get_config_value(db: Session, key: str):
     config = db.query(Configuration).filter(
         Configuration.config_parameter == key
@@ -13,15 +14,17 @@ def get_config_value(db: Session, key: str):
     return config.config_value if config else None
 
 
+# ================= SEND EMAIL =================
 def send_email(db: Session, to_email: str, subject: str, body: str):
 
-    smtp_email = get_config_value(db, "mfa_email")
-    smtp_password = get_config_value(db, "mfa_email_password")
-    smtp_server = get_config_value(db, "smtp_server") or "smtp.gmail.com"
-    smtp_port = int(get_config_value(db, "smtp_port") or 587)
+    smtp_email = get_config_value(db, "MFA_EMAIL")
+    smtp_password = get_config_value(db, "MFA_EMAIL_PASSWORD")
+    smtp_server = get_config_value(db, "SMTP_SERVER") or "smtp.gmail.com"
+    smtp_port = int(get_config_value(db, "SMTP_PORT") or 587)
 
     if not smtp_email or not smtp_password:
-        raise Exception("Email configuration not set")
+        print("Email config missing")
+        return
 
     msg = MIMEText(body)
     msg["Subject"] = subject
@@ -32,7 +35,8 @@ def send_email(db: Session, to_email: str, subject: str, body: str):
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(smtp_email, smtp_password)
-        server.sendmail(smtp_email, to_email, msg.as_string())
+        server.sendmail(smtp_email, [to_email], msg.as_string())
         server.quit()
+        print("Email sent successfully")
     except Exception as e:
-        raise Exception(f"Email sending failed: {str(e)}")
+        print("Email failed:", str(e))

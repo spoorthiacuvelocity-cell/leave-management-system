@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import date
-
+from datetime import date, timedelta
 from backend.database.postgres import get_db
 from backend.app.models.leave_request import LeaveRequest
 from backend.app.models.leave_balance import LeaveBalance
@@ -25,7 +25,6 @@ def get_config(db: Session, key: str):
     return config.config_value if config else None
 
 
-# ================= APPLY LEAVE =================
 @router.post("/apply")
 async def apply_leave(
     request: LeaveCreate,
@@ -34,11 +33,26 @@ async def apply_leave(
     current_user: User = Depends(get_current_user)
 ):
 
-    # 🔥 Only employee & manager can apply
-    if current_user.role not in ["employee", "manager"]:
+    # 🔥 NOTICE PERIOD CHECK (Fully Safe)
+
+    notice_end_date = None
+
+    if (
+        current_user.resignation_status == "APPROVED"
+        and current_user.resignation_approval_date
+    ):
+        notice_days_config = get_config(db, "notice_period_days")
+        notice_days = int(notice_days_config) if notice_days_config else 0
+
+        notice_end_date = (
+            current_user.resignation_approval_date
+            + timedelta(days=notice_days)
+        )
+
+    if notice_end_date and date.today() <= notice_end_date:
         raise HTTPException(
-            status_code=403,
-            detail="Only employees and managers can apply leave"
+            status_code=400,
+            detail="You are in notice period. You cannot apply leave. Please contact your manager."
         )
 
     # ✅ 1. Overlapping Leave Check
@@ -60,7 +74,7 @@ async def apply_leave(
     if leave_days <= 0:
         raise HTTPException(status_code=400, detail="Invalid date range")
 
-    # ✅ 3. Notice Period Check
+    # ✅ 3. Advance Notice Check
     notice_period = get_config(db, "notice_period_per_days")
     if notice_period:
         today = date.today()
@@ -80,7 +94,7 @@ async def apply_leave(
             detail=f"Maximum {max_consecutive} consecutive leaves allowed"
         )
 
-    # 🔥 Leave-type specific gender rule
+    # 🔥 Gender Rule
     gender_specific = get_config(db, f"{request.leave_type}_gender_specific")
 
     if gender_specific:
@@ -90,7 +104,7 @@ async def apply_leave(
                 detail=f"{request.leave_type} is only for {gender_specific}"
             )
 
-   # 🔥 Leave-type specific proof rule
+    # 🔥 Proof Rule
     proof_required = get_config(db, f"{request.leave_type}_proof_required")
     proof_after_days = get_config(db, f"{request.leave_type}_proof_required_after_days")
 
@@ -104,20 +118,16 @@ async def apply_leave(
                         detail=f"Proof required for {request.leave_type}"
                     )
         else:
-            # If no days limit defined but proof_required true
             if not request.proof_document:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Proof required for {request.leave_type}"
                 )
 
-
     # ✅ 7. Leave Balance Check
-    # Get current year and quarter
     current_year = request.start_date.year
     current_quarter = (request.start_date.month - 1) // 3 + 1
 
-    # Get allowed leaves per quarter from config
     leaves_per_quarter = get_config(db, "leaves_per_quarter")
 
     if not leaves_per_quarter:
@@ -125,7 +135,6 @@ async def apply_leave(
 
     leaves_per_quarter = float(leaves_per_quarter)
 
-    # Fetch existing balance record
     balance = db.query(LeaveBalance).filter(
         LeaveBalance.user_id == current_user.id,
         LeaveBalance.leave_type == request.leave_type,
@@ -137,10 +146,9 @@ async def apply_leave(
 
     if leaves_taken + leave_days > leaves_per_quarter:
         raise HTTPException(
-        status_code=400,
-        detail="Quarterly leave limit exceeded"
-    )
-
+            status_code=400,
+            detail="Quarterly leave limit exceeded"
+        )
 
     # ✅ 8. Create Leave Request
     leave = LeaveRequest(
@@ -169,7 +177,6 @@ async def apply_leave(
     db.commit()
 
     return {"message": "Leave applied successfully"}
-
 
 # ================= VIEW ALL LEAVES =================
 @router.get("/all")

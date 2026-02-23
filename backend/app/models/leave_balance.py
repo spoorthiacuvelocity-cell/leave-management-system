@@ -10,4 +10,6 @@ class LeaveBalance(Base):
     leave_type = Column(String, nullable=False)
     year = Column(Integer, nullable=False)
     quarter = Column(Integer, nullable=False)
+
     leaves_taken = Column(Numeric(4, 1), default=0)
+    remaining_leaves = Column(Numeric(4, 1), default=0)
