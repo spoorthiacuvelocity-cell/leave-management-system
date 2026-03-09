@@ -1,0 +1,36 @@
+.manager-layout{
+display:flex;
+height:100vh;
+}
+
+.manager-sidebar{
+width:230px;
+background:#1e293b;
+color:white;
+padding:25px;
+display:flex;
+flex-direction:column;
+gap:15px;
+}
+
+.manager-sidebar a{
+color:white;
+text-decoration:none;
+padding:10px;
+border-radius:6px;
+}
+
+.manager-sidebar a.active{
+background:#3b82f6;
+}
+
+.manager-content{
+flex:1;
+padding:35px;
+background:#f4f6fb;
+overflow:auto;
+}
+
+.manager-logo{
+margin-bottom:20px;
+}

@@ -1,0 +1,149 @@
+.config-container {
+  padding: 30px;
+}
+
+.config-row {
+  display: flex;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+.box {
+  flex: 1;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  background: white;
+}
+
+.box-header {
+  font-weight: 600;
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.param-block {
+  margin-bottom: 20px;
+}
+
+.btn-row button {
+  margin-right: 10px;
+}
+
+.plus-btn {
+  background: #1976d2;
+  color: white;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.delete-btn {
+  background: red;
+  color: white;
+}
+.box-header {
+  font-weight: 600;
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.arrow {
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.param-name {
+  width: 200px;
+  font-weight: 500;
+}
+
+.param-input {
+  width: 150px;
+  padding: 4px;
+}
+.card {
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.leave-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.leave-table th {
+  text-align: left;
+  padding: 12px;
+  background-color: #f5f6fa;
+  font-weight: 600;
+  font-size: 14px;
+  color: #555;
+}
+
+.leave-table td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+.leave-table tr:hover {
+  background-color: #f9fafc;
+}
+
+.status-badge {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.approved {
+  background-color: #e6f7ec;
+  color: #2e7d32;
+}
+
+.status-badge.rejected {
+  background-color: #fdecea;
+  color: #c62828;
+}
+
+.status-badge.pending {
+  background-color: #fff4e5;
+  color: #ef6c00;
+}
+
+.status-badge.cancelled {
+  background-color: #eceff1;
+  color: #546e7a;
+}
+
+.danger-btn {
+  background-color: #e53935;
+  color: white;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.danger-btn:hover {
+  background-color: #c62828;
+}

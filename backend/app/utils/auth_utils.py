@@ -1,6 +1,6 @@
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -11,22 +11,10 @@ from backend.app.models.configuration import Configuration
 from backend.app.config import SECRET_KEY, ALGORITHM
 
 
-# Password hashing
+# ================= PASSWORD HASHING =================
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# IMPORTANT: This must match your login route
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-
-# ================= HELPER FUNCTION =================
-def get_config(db: Session, key: str):
-    config = db.query(Configuration).filter(
-        Configuration.config_parameter == key
-    ).first()
-    return config.config_value if config else None
-
-
-# ================= PASSWORD =================
 def hash_password(password: str):
     return pwd_context.hash(password)
 
@@ -35,19 +23,27 @@ def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
 
-# ================= CREATE TOKEN =================
-def create_access_token(data: dict, expires_delta: timedelta = None):
+# ================= OAUTH2 =================
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+
+# ================= CREATE ACCESS TOKEN =================
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+
+def create_access_token(data: dict):
     to_encode = data.copy()
 
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(hours=2)
+    # 🔥 Always store sub as string
+    if "sub" in to_encode:
+        to_encode["sub"] = str(to_encode["sub"])
 
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
 
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
 # ================= GET CURRENT USER =================
 def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -55,29 +51,33 @@ def get_current_user(
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Not authenticated",
     )
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
+
+        user_id = payload.get("sub")
 
         if user_id is None:
             raise credentials_exception
 
-    except JWTError:
+        # 🔥 Convert safely to int
+        user_id = int(user_id)
+
+    except (JWTError, ValueError):
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.query(User).filter(User.id == user_id).first()
 
     if user is None:
         raise credentials_exception
 
-    # 🔥 BLOCK LOGIN IMMEDIATELY IF RESIGNATION APPROVED
+    # 🔥 Block resigned users
     if user.resignation_status == "APPROVED":
-        raise HTTPException(
-            status_code=403,
-            detail="Your resignation has been approved. Please contact HR."
+         raise HTTPException(
+        status_code=403,
+             detail="Your resignation has been approved. Please contact HR."
         )
 
     # 🔥 Block inactive users
@@ -88,3 +88,11 @@ def get_current_user(
         )
 
     return user
+
+
+# ================= HELPER FUNCTION =================
+def get_config(db: Session, key: str):
+    config = db.query(Configuration).filter(
+        Configuration.config_parameter == key
+    ).first()
+    return config.config_value if config else None

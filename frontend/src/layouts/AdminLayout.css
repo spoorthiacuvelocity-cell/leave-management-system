@@ -1,0 +1,36 @@
+.admin-layout{
+display:flex;
+height:100vh;
+}
+
+.admin-sidebar{
+width:240px;
+background:#0f172a;
+color:white;
+padding:25px;
+display:flex;
+flex-direction:column;
+gap:15px;
+}
+
+.admin-sidebar a{
+color:white;
+text-decoration:none;
+padding:10px;
+border-radius:6px;
+}
+
+.admin-sidebar a.active{
+background:#2563eb;
+}
+
+.admin-content{
+flex:1;
+padding:35px;
+background:#f5f7fb;
+overflow:auto;
+}
+
+.admin-logo{
+margin-bottom:20px;
+}

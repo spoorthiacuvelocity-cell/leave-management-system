@@ -1,0 +1,149 @@
+.resignation-card {
+  max-width: 650px;
+  margin: auto;
+  padding: 30px;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  position: relative;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.resignation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.resignation-header h2 {
+  color: #2c3e50;
+}
+
+.resignation-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.resignation-field label {
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.resignation-field input,
+.resignation-field textarea {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.resignation-field input:focus,
+.resignation-field textarea:focus {
+  border-color: #34495e;
+  outline: none;
+}
+
+.resignation-btn {
+  width: 100%;
+  padding: 12px;
+  background: #2c3e50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.resignation-btn:hover {
+  background: #1a252f;
+}
+
+/* Status Badge */
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.status-badge.approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-badge.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* HR Status */
+.hr-status {
+  margin-top: 20px;
+  padding: 12px;
+  background: #f4f6f9;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* Loader Animation */
+.loader {
+  margin: 20px auto;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #2c3e50;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  animation: spin 1s linear infinite;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-box {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  width: 350px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.confirm-btn {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 5px;
+}
+
+/* Animations */
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
