@@ -62,7 +62,9 @@ The system includes an Admin Analytics Dashboard showing:
 
 These analytics help HR teams analyze leave patterns and workforce availability.
 
-📂 Project Structure
+## 📂 Project Structure
+
+```
 leave-management-system
 │
 ├── backend
@@ -84,6 +86,7 @@ leave-management-system
 │   │   └── context
 │
 └── uploads
+```
 
 🛠 Tech Stack
 Frontend
