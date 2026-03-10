@@ -7,13 +7,10 @@ export const getAllLeaves = () => {
 
 // 🔹 Approve leave
 export const approveLeaveByAdmin = (leaveId, remarks) => {
-  return API.put(`/admin/leave/${leaveId}/approve`, remarks, {
-    headers: { "Content-Type": "application/json" },
-  });
+  return API.put(`/admin/leave/${leaveId}/approve`, { remarks });
 };
 
+// 🔹 Reject leave
 export const rejectLeaveByAdmin = (leaveId, remarks) => {
-  return API.put(`/admin/leave/${leaveId}/reject`, remarks, {
-    headers: { "Content-Type": "application/json" },
-  });
+  return API.put(`/admin/leave/${leaveId}/reject`, { remarks });
 };

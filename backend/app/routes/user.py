@@ -31,15 +31,14 @@ def register_user(
         )
 
     new_user = User(
-        name=user_data.name,
-        email=user_data.email,
-        password=hash_password(user_data.password),
-        role=user_data.role.upper(),
-        gender=user_data.gender.upper(),
-        manager_id=user_data.manager_id,
-        is_active=True
-    )
-
+    name=user_data.name,
+    email=user_data.email,
+    password=hash_password(user_data.password),
+    role=user_data.role,
+    gender=user_data.gender,
+    manager_id=user_data.manager_id,
+    is_active=True
+)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)

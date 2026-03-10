@@ -252,3 +252,11 @@ def get_leave_types():
         "PATERNITY",
         "PERIODS"
     ]
+@router.get("/leave-document/{leave_id}")
+def preview_document(leave_id: int, db: Session = Depends(get_db)):
+    leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
+
+    if not leave:
+        raise HTTPException(status_code=404, detail="Leave not found")
+
+    return {"file_url": leave.document_path}

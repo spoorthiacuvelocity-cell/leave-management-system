@@ -54,3 +54,11 @@ def get_monthly_trend(
         final.append(trend.get(m, 0))
 
     return final
+@router.get("/admin-chart")
+def get_admin_chart(db: Session = Depends(get_db)):
+    result = db.query(
+        func.extract("month", LeaveRequest.start_date).label("month"),
+        func.count(LeaveRequest.id)
+    ).group_by("month").all()
+
+    return result

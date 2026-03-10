@@ -1,9 +1,12 @@
 import API from "./axiosInstance";
 
 /* ================= LOGIN ================= */
+
 export const loginUser = async (email, password) => {
+
   const formData = new URLSearchParams();
-  formData.append("username", email); // FastAPI expects 'username'
+
+  formData.append("username", email);
   formData.append("password", password);
 
   const response = await API.post("/auth/login", formData, {
@@ -13,18 +16,25 @@ export const loginUser = async (email, password) => {
   });
 
   return response.data;
+
 };
 
 
 /* ================= REGISTER ================= */
+
 export const registerUser = async (data) => {
+
+  console.log("Sending register data:", data);
+
   const response = await API.post("/auth/register", {
     name: data.name,
     email: data.email,
     password: data.password,
     role: data.role.toUpperCase(),
     gender: data.gender.toUpperCase(),
+    manager_id: data.manager_id
   });
 
   return response.data;
+
 };

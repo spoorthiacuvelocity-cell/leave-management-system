@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import API from "../../api/axiosInstance";
 import {
   getEmployees,
   updateEmployeeManager,
@@ -16,9 +17,8 @@ const EmployeeManagement = () => {
   };
 
   const fetchManagers = async () => {
-    const res = await fetch("http://localhost:8000/users/managers");
-    const data = await res.json();
-    setManagers(data);
+    const res = await API.get("/users/managers");
+    setManagers(res.data);
   };
 
   useEffect(() => {
@@ -36,11 +36,42 @@ const EmployeeManagement = () => {
     fetchEmployees();
   };
 
+  // ✅ Export CSV
+  const exportCSV = async () => {
+    try {
+
+      const response = await API.get("/admin/export-leaves", {
+        responseType: "blob"
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "leaves.csv");
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+    } catch (error) {
+      console.error("Export failed", error);
+    }
+  };
+
   return (
 
     <div style={{ padding: "30px" }}>
 
       <h2>Employee Management</h2>
+
+      {/* ✅ Export button (only once) */}
+      <button
+        onClick={exportCSV}
+        style={{ marginBottom: "15px" }}
+      >
+        Export CSV
+      </button>
 
       <table border="1" cellPadding="10">
 
@@ -82,24 +113,23 @@ const EmployeeManagement = () => {
               </td>
 
               <td>
-  <span
-    style={{
-      color: emp.is_active ? "green" : "red",
-      fontWeight: "bold"
-    }}
-  >
-    {emp.is_active ? "Active" : "Inactive"}
-  </span>
-</td>
-
+                <span
+                  style={{
+                    color: emp.is_active ? "green" : "red",
+                    fontWeight: "bold"
+                  }}
+                >
+                  {emp.is_active ? "Active" : "Inactive"}
+                </span>
+              </td>
 
               <td>
                 <button
-  disabled={!emp.is_active}
-  onClick={() => handleDeactivate(emp.id)}
->
-  Deactivate
-</button>
+                  disabled={!emp.is_active}
+                  onClick={() => handleDeactivate(emp.id)}
+                >
+                  Deactivate
+                </button>
               </td>
 
             </tr>

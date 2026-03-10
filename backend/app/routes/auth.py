@@ -38,9 +38,8 @@ def register(request: RegisterSchema, db: Session = Depends(get_db)):
     password=hashed_password,
     role=request.role.upper(),
     gender=request.gender.upper(),
-    manager_id=request.manager_id
+    manager_id=int(request.manager_id) if request.manager_id else None
 )
-
     db.add(new_user)
     db.commit()
     db.refresh(new_user)

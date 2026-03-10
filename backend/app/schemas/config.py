@@ -23,4 +23,4 @@ class ConfigResponse(ConfigBase):
     updated_by: Optional[str]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
