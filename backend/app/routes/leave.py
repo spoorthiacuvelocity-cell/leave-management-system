@@ -1,15 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from datetime import date
-from fastapi import UploadFile, File, Form
 import os
+import uuid
+
 from backend.database.postgres import get_db
 from backend.app.models.leave_request import LeaveRequest
 from backend.app.models.leave_balance import LeaveBalance
-from backend.app.models.leave_logs import LeaveLog
-from backend.app.models.configuration import Configuration
 from backend.app.models.user import User
-from backend.app.schemas.leave_schema import LeaveCreate
 from backend.app.utils.auth_utils import get_current_user
 
 router = APIRouter(
@@ -18,12 +16,76 @@ router = APIRouter(
 )
 
 
-# ================= HELPER FUNCTION =================
-def get_config(db: Session, key: str):
-    config = db.query(Configuration).filter(
-        Configuration.config_parameter == key
-    ).first()
-    return config.config_value if config else None
+# ================= GET LEAVE TYPES =================
+@router.get("/types")
+def get_leave_types(current_user: User = Depends(get_current_user)):
+
+    types = ["CASUAL", "SICK", "EARNED", "LOSS_OF_PAY"]
+
+    if current_user.gender.upper() == "FEMALE":
+        types.extend(["MATERNITY", "PERIODS"])
+
+    if current_user.gender.upper() == "MALE":
+        types.append("PATERNITY")
+
+    return types
+
+
+# ================= GET MY LEAVES =================
+@router.get("/my")
+def get_my_leaves(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    leaves = db.query(LeaveRequest).filter(
+        LeaveRequest.user_id == current_user.id
+    ).order_by(LeaveRequest.start_date.desc()).all()
+
+    return leaves
+
+
+# ================= GET LEAVE BALANCE =================
+@router.get("/balance")
+def get_leave_balance(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    leave_types = ["CASUAL", "SICK", "EARNED", "LOSS_OF_PAY"]
+
+    if current_user.gender.upper() == "MALE":
+        leave_types.append("PATERNITY")
+
+    if current_user.gender.upper() == "FEMALE":
+        leave_types.extend(["MATERNITY", "PERIODS"])
+
+    balances = []
+
+    for leave_type in leave_types:
+
+        balance = db.query(LeaveBalance).filter(
+            LeaveBalance.user_id == current_user.id,
+            LeaveBalance.leave_type == leave_type
+        ).first()
+
+        if balance:
+
+            balances.append({
+                "leave_type": balance.leave_type,
+                "leaves_taken": float(balance.leaves_taken),
+                "remaining_leaves": float(balance.remaining_leaves)
+            })
+
+        else:
+
+            balances.append({
+                "leave_type": leave_type,
+                "leaves_taken": 0,
+                "remaining_leaves": 0
+            })
+
+    return balances
 
 
 # ================= APPLY LEAVE =================
@@ -41,22 +103,21 @@ async def apply_leave(
 
     today = date.today()
 
-    # 🚨 BLOCK IF RESIGNATION PENDING
-    if current_user.resignation_status == "PENDING":
-        raise HTTPException(
-            status_code=400,
-            detail="Your resignation is pending approval. Leave not allowed."
-        )
-
-    # 🚨 BLOCK IF IN NOTICE PERIOD
-    if current_user.resignation_status == "APPROVED":
+    # Block leave during notice period
+    if current_user.resignation_status == "notice_period":
         if current_user.last_working_day and today <= current_user.last_working_day:
             raise HTTPException(
                 status_code=400,
-                detail="You are in your notice period. You cannot apply leave."
+                detail="You are in notice period. Leave cannot be applied."
             )
 
-    # 🚨 GENDER RESTRICTION
+    if current_user.resignation_status == "resigned":
+        raise HTTPException(
+            status_code=403,
+            detail="You are no longer an active employee."
+        )
+
+    # Gender restrictions
     if current_user.gender.upper() == "MALE" and leave_type in ["MATERNITY", "PERIODS"]:
         raise HTTPException(
             status_code=400,
@@ -69,7 +130,13 @@ async def apply_leave(
             detail="You are not eligible for this leave type."
         )
 
-    # 🚨 SICK LEAVE RULE
+    # Date validation
+    if start_date > end_date:
+        raise HTTPException(status_code=400, detail="Invalid date range")
+
+    leave_days = (end_date - start_date).days + 1
+
+    # Sick leave rules
     if leave_type == "SICK":
 
         if start_date != today:
@@ -78,23 +145,21 @@ async def apply_leave(
                 detail="Sick leave can only be applied for today."
             )
 
-        total_days = (end_date - start_date).days + 1
-
-        if total_days > 2 and not proof_document:
+        if leave_days > 2 and not proof_document:
             raise HTTPException(
                 status_code=400,
                 detail="Medical proof required for sick leave more than 2 days."
             )
 
-    # 🚨 PROOF REQUIRED FOR MATERNITY & PATERNITY
+    # Maternity/Paternity proof
     if leave_type in ["MATERNITY", "PATERNITY"]:
         if not proof_document:
             raise HTTPException(
                 status_code=400,
-                detail="Proof document is required for this leave type."
+                detail="Proof document required."
             )
 
-    # ================= OVERLAPPING CHECK =================
+    # ================= LEAVE OVERLAP CHECK =================
     overlapping_leave = db.query(LeaveRequest).filter(
         LeaveRequest.user_id == current_user.id,
         LeaveRequest.status.in_(["Pending", "Approved"]),
@@ -103,13 +168,11 @@ async def apply_leave(
     ).first()
 
     if overlapping_leave:
-        raise HTTPException(status_code=400, detail="Leave already exists")
+        raise HTTPException(
+            status_code=400,
+            detail="Leave request overlaps with an existing leave"
+        )
 
-    leave_days = (end_date - start_date).days + 1
-    if leave_days <= 0:
-        raise HTTPException(status_code=400, detail="Invalid date range")
-
-    # ================= BALANCE CHECK =================
     current_year = start_date.year
     current_quarter = (start_date.month - 1) // 3 + 1
 
@@ -120,19 +183,49 @@ async def apply_leave(
         LeaveBalance.quarter == current_quarter
     ).first()
 
+    # ================= AUTO CREATE BALANCE =================
     if not balance:
-        raise HTTPException(status_code=400, detail="Leave balance not found")
 
-    if balance.remaining_leaves < leave_days:
-        raise HTTPException(status_code=400, detail="Insufficient leave balance")
+        default_leaves = {
+            "CASUAL": 6,
+            "SICK": 6,
+            "EARNED": 12,
+            "LOSS_OF_PAY": 0,
+            "PATERNITY": 15,
+            "MATERNITY": 180,
+            "PERIODS": 12
+        }
+
+        total = default_leaves.get(leave_type, 0)
+
+        balance = LeaveBalance(
+            user_id=current_user.id,
+            leave_type=leave_type,
+            year=current_year,
+            quarter=current_quarter,
+            leaves_taken=0,
+            remaining_leaves=total
+        )
+
+        db.add(balance)
+        db.commit()
+        db.refresh(balance)
+
+    if leave_days > float(balance.remaining_leaves):
+        raise HTTPException(
+            status_code=400,
+            detail="Insufficient leave balance"
+        )
 
     # ================= SAVE FILE =================
     file_path = None
 
     if proof_document:
+
         os.makedirs("uploads", exist_ok=True)
 
-        file_location = f"uploads/{proof_document.filename}"
+        unique_name = f"{uuid.uuid4()}_{proof_document.filename}"
+        file_location = f"uploads/{unique_name}"
 
         with open(file_location, "wb") as buffer:
             buffer.write(await proof_document.read())
@@ -156,15 +249,24 @@ async def apply_leave(
     db.refresh(leave)
 
     return {"message": "Leave applied successfully"}
-# ================= MY LEAVES =================
-@router.get("/my")
-def get_my_leaves(
+
+
+# ================= MANAGER VIEW EMPLOYEE BALANCE =================
+@router.get("/manager/employee-balance/{employee_id}")
+def manager_view_employee_balance(
+    employee_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return db.query(LeaveRequest).filter(
-        LeaveRequest.user_id == current_user.id
+
+    if current_user.role != "MANAGER":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    balances = db.query(LeaveBalance).filter(
+        LeaveBalance.user_id == employee_id
     ).all()
+
+    return balances
 
 
 # ================= CANCEL LEAVE =================
@@ -185,78 +287,11 @@ def cancel_leave(
     if leave.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    if leave.status != "Pending":
-        raise HTTPException(status_code=400, detail="Cannot cancel processed leave")
+    if leave.status == "Cancelled":
+        raise HTTPException(status_code=400, detail="Leave already cancelled")
 
     leave.status = "Cancelled"
 
-    log = LeaveLog(
-        leave_id=leave.id,
-        action="Cancelled",
-        performed_by=current_user.id
-    )
-
-    db.add(log)
     db.commit()
 
     return {"message": "Leave cancelled successfully"}
-
-
-# ================= LEAVE BALANCE =================
-@router.get("/balance")
-def get_leave_balance(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    current_year = date.today().year
-    current_quarter = (date.today().month - 1) // 3 + 1
-
-    balances = db.query(LeaveBalance).filter(
-        LeaveBalance.user_id == current_user.id,
-        LeaveBalance.year == current_year,
-        LeaveBalance.quarter == current_quarter
-    ).all()
-
-    result = {}
-
-    for balance in balances:
-
-        leave_type = balance.leave_type.upper()
-
-        # 🚨 Gender-based filtering
-        if current_user.gender.upper() == "MALE":
-            if leave_type in ["MATERNITY", "PERIODS"]:
-                continue
-
-        if current_user.gender.upper() == "FEMALE":
-            if leave_type == "PATERNITY":
-                continue
-
-        result[leave_type.lower()] = {
-            "year": balance.year,
-            "quarter": balance.quarter,
-            "taken": balance.leaves_taken,
-            "remaining": balance.remaining_leaves
-        }
-
-    return result
-# ================= LEAVE TYPES =================
-@router.get("/types")
-def get_leave_types():
-    return [
-        "CASUAL",
-        "SICK",
-        "EARNED",
-        "LOSS_OF_PAY",
-        "MATERNITY",
-        "PATERNITY",
-        "PERIODS"
-    ]
-@router.get("/leave-document/{leave_id}")
-def preview_document(leave_id: int, db: Session = Depends(get_db)):
-    leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
-
-    if not leave:
-        raise HTTPException(status_code=404, detail="Leave not found")
-
-    return {"file_url": leave.document_path}

@@ -25,7 +25,6 @@ async def manager_approve_leave(
     current_user: User = Depends(get_current_user)
 ):
 
-    # 🔥 FIXED ROLE CHECK
     if current_user.role.upper() != "MANAGER":
         raise HTTPException(status_code=403, detail="Manager access required")
 
@@ -36,7 +35,6 @@ async def manager_approve_leave(
     if not leave:
         raise HTTPException(status_code=404, detail="Leave not found")
 
-    # Ensure employee belongs to manager
     employee = db.query(User).filter(
         User.id == leave.user_id,
         User.manager_id == current_user.id
@@ -45,7 +43,6 @@ async def manager_approve_leave(
     if not employee:
         raise HTTPException(status_code=403, detail="Not your team member")
 
-    # 🔥 Use consistent approver role
     result = ApprovalService.approve_leave(
         db,
         leave_id,
@@ -59,9 +56,11 @@ async def manager_approve_leave(
         action=f"Approved by Manager. Remarks: {remarks}" if remarks else "Approved by Manager",
         performed_by=current_user.id
     )
+
     db.add(log)
     db.commit()
 
+    # Send email notification
     if background_tasks:
         background_tasks.add_task(
             send_email,
@@ -69,9 +68,14 @@ async def manager_approve_leave(
             employee.email,
             "Leave Approved",
             f"""
+Hello {employee.name},
+
 Your leave from {leave.start_date} to {leave.end_date} has been approved.
 
 Remarks: {remarks if remarks else 'No remarks provided.'}
+
+Regards,
+HR Team
 """
         )
 
@@ -88,7 +92,6 @@ async def manager_reject_leave(
     current_user: User = Depends(get_current_user)
 ):
 
-    # 🔥 FIXED ROLE CHECK
     if current_user.role.upper() != "MANAGER":
         raise HTTPException(status_code=403, detail="Manager access required")
 
@@ -120,6 +123,7 @@ async def manager_reject_leave(
         action=f"Rejected by Manager. Remarks: {remarks}" if remarks else "Rejected by Manager",
         performed_by=current_user.id
     )
+
     db.add(log)
     db.commit()
 
@@ -130,19 +134,27 @@ async def manager_reject_leave(
             employee.email,
             "Leave Rejected",
             f"""
+Hello {employee.name},
+
 Your leave from {leave.start_date} to {leave.end_date} has been rejected.
 
 Remarks: {remarks if remarks else 'No remarks provided.'}
+
+Regards,
+HR Team
 """
         )
 
     return result
-# ================= TEAM LEAVES (MANAGER) =================
+
+
+# ================= TEAM LEAVES =================
 @router.get("/team")
 def get_team_leaves(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+
     if current_user.role.upper() != "MANAGER":
         raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -157,7 +169,9 @@ def get_team_leaves(
     )
 
     result = []
+
     for leave, name in leaves:
+
         leave_dict = {
             "id": leave.id,
             "leave_type": leave.leave_type,
@@ -169,6 +183,7 @@ def get_team_leaves(
             "employee_name": name,
             "proof_document": leave.proof_document
         }
+
         result.append(leave_dict)
 
     return result

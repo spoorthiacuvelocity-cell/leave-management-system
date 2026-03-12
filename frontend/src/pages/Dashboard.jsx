@@ -52,16 +52,19 @@ const Dashboard = () => {
       const labels = res.data.months.map(m => monthNames[m]);
 
       setChartData({
-        labels: labels,
-        datasets: [
-          {
-            label: "Leave Requests",
-            data: res.data.counts,
-            backgroundColor: "#4f46e5"
-          }
-        ]
-      });
-
+  labels: labels,
+  datasets: [
+  {
+    label: "Leave Requests",
+    data: res.data.counts,
+    backgroundColor: "#5B6C8F",   // professional muted blue-gray
+    borderColor: "#5B6C8F",
+    borderWidth: 1,
+    borderRadius: 6,              // rounded bars
+    barThickness: 40              // thicker bars
+  }
+]
+});
     } catch (error) {
       console.error("Failed to load chart data");
     }

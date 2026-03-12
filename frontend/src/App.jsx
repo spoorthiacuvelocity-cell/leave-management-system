@@ -3,7 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./auth/Login";
 import Register from "./pages/Register";
 import ProtectedRoute from "./auth/ProtectedRoute";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import EmployeeManagement from "./pages/admin/EmployeeManagement";
+
 import AdminLayout from "./layouts/AdminLayout";
 import EmployeeLayout from "./layouts/EmployeeLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
@@ -13,7 +16,6 @@ import Dashboard from "./pages/Dashboard";
 import EmployeeLeave from "./pages/employee/EmployeeLeave";
 import EmployeeHistory from "./pages/employee/EmployeeHistory";
 import LeaveBalance from "./pages/employee/LeaveBalance";
-import EmployeeResignation from "./pages/employee/EmployeeResignation";
 
 import ManagerApprovals from "./pages/manager/ManagerApprovals";
 
@@ -26,93 +28,101 @@ import NotAuthorized from "./pages/NotAuthorized";
 import { AuthProvider } from "./context/AuthContext";
 
 const App = () => {
-  return (
-    <AuthProvider>
 
-      <BrowserRouter>
+return (
 
-        <Routes>
+<AuthProvider>
 
-          {/* Public Routes */}
-          <Route path="/" element={<Navigate to="/login" />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/not-authorized" element={<NotAuthorized />} />
+  <BrowserRouter>
 
-          {/* ================= EMPLOYEE ================= */}
-          <Route
-            path="/employee"
-            element={
-              <ProtectedRoute>
-                <EmployeeLayout />
-              </ProtectedRoute>
-            }
-          >
+    <Routes>
 
-            <Route index element={<Navigate to="dashboard" />} />
+      {/* Public Routes */}
+      <Route path="/" element={<Navigate to="/login" />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route path="/not-authorized" element={<NotAuthorized />} />
 
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="apply-leave" element={<EmployeeLeave />} />
-            <Route path="leave-history" element={<EmployeeHistory />} />
-            <Route path="leave-balance" element={<LeaveBalance />} />
-            <Route path="resignation" element={<EmployeeResignation />} />
 
-          </Route>
+      {/* ================= EMPLOYEE ================= */}
+      <Route
+        path="/employee"
+        element={
+          <ProtectedRoute>
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
 
-          {/* ================= MANAGER ================= */}
-<Route
-  path="/manager"
-  element={
-    <ProtectedRoute>
-      <ManagerLayout />
-    </ProtectedRoute>
-  }
->
+        <Route index element={<Navigate to="dashboard" />} />
 
-  <Route index element={<Navigate to="dashboard" />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="apply-leave" element={<EmployeeLeave />} />
+        <Route path="leave-history" element={<EmployeeHistory />} />
+        <Route path="leave-balance" element={<LeaveBalance />} />
 
-  <Route path="dashboard" element={<Dashboard />} />
+      </Route>
 
-  <Route path="apply-leave" element={<EmployeeLeave />} />
 
-  <Route path="leave-history" element={<EmployeeHistory />} />
+      {/* ================= MANAGER ================= */}
+      <Route
+        path="/manager"
+        element={
+          <ProtectedRoute>
+            <ManagerLayout />
+          </ProtectedRoute>
+        }
+      >
 
-  <Route path="leave-balance" element={<LeaveBalance />} />
+        <Route index element={<Navigate to="dashboard" />} />
 
-  <Route path="resignation" element={<EmployeeResignation />} />
+        <Route path="dashboard" element={<Dashboard />} />
 
-  <Route path="approvals" element={<ManagerApprovals />} />
+        {/* Manager can also access these */}
+        <Route path="apply-leave" element={<EmployeeLeave />} />
+        <Route path="leave-history" element={<EmployeeHistory />} />
+        <Route path="leave-balance" element={<LeaveBalance />} />
 
-</Route>
+        <Route path="approvals" element={<ManagerApprovals />} />
 
-          {/* ================= ADMIN ================= */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
+      </Route>
 
-            <Route index element={<Navigate to="dashboard" />} />
-            <Route path="employees" element={<EmployeeManagement />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="leave-approvals" element={<AllLeaveApprovals />} />
-            <Route path="resignations" element={<AdminResignations />} />
-            <Route path="configuration" element={<Configuration />} />
-            <Route path="register-employee" element={<Register />} />
 
-          </Route>
+      {/* ================= ADMIN ================= */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/login" />} />
+        <Route index element={<Navigate to="dashboard" />} />
 
-        </Routes>
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="employees" element={<EmployeeManagement />} />
+        <Route path="leave-approvals" element={<AllLeaveApprovals />} />
+        <Route path="resignations" element={<AdminResignations />} />
+        <Route path="configuration" element={<Configuration />} />
+        <Route path="register-employee" element={<Register />} />
 
-      </BrowserRouter>
+      </Route>
 
-    </AuthProvider>
-  );
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/login" />} />
+
+    </Routes>
+
+  </BrowserRouter>
+
+</AuthProvider>
+
+
+);
+
 };
 
 export default App;

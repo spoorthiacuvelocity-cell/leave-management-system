@@ -2,7 +2,6 @@ import "../../styles/leaveApply.css";
 import { applyLeave, getLeaveTypes } from "../../api/leaveApi";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-
 const EmployeeLeave = () => {
 
   const auth = useAuth();

@@ -34,3 +34,17 @@ overflow:auto;
 .manager-logo{
 margin-bottom:20px;
 }
+.logout-btn {
+  margin-top: 20px;
+  padding: 10px;
+  width: 100%;
+  background: #d9534f;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.logout-btn:hover {
+  background: #c9302c;
+}

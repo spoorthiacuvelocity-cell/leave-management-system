@@ -4,7 +4,7 @@ import "../../styles/leaveBalance.css";
 
 const LeaveBalance = () => {
 
-  const [balance, setBalance] = useState({});
+  const [balance, setBalance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resignationApproved, setResignationApproved] = useState(false);
 
@@ -15,7 +15,7 @@ const LeaveBalance = () => {
       try {
 
         const res = await getLeaveBalance();
-        setBalance(res.data);
+        setBalance(res);
 
       } catch (error) {
 
@@ -61,9 +61,7 @@ const LeaveBalance = () => {
 
   }
 
-  const leaveTypes = Object.keys(balance);
-
-  if (leaveTypes.length === 0) {
+  if (balance.length === 0) {
     return <p>No leave balance found.</p>;
   }
 
@@ -75,23 +73,23 @@ const LeaveBalance = () => {
 
       <div className="balance-grid">
 
-        {leaveTypes.map((type) => (
+        {balance.map((item) => (
 
-          <div key={type} className="balance-card">
+          <div key={item.leave_type} className="balance-card">
 
-            <h3>{type.toUpperCase()}</h3>
+            <h3>{item.leave_type}</h3>
 
-            <p><strong>Taken:</strong> {balance[type].taken}</p>
+            <p><strong>Taken:</strong> {item.leaves_taken}</p>
 
-            <p><strong>Remaining:</strong> {balance[type].remaining}</p>
+            <p><strong>Remaining:</strong> {item.remaining_leaves}</p>
 
             <div className="progress-bar">
 
               <div
                 className="progress-fill"
                 style={{
-                  width:`${(balance[type].taken /
-                    (balance[type].taken + balance[type].remaining)) * 100}%`
+                  width:`${(item.leaves_taken /
+                    (item.leaves_taken + item.remaining_leaves || 1)) * 100}%`
                 }}
               ></div>
 

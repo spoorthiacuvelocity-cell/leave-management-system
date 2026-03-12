@@ -1,45 +1,63 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./AdminLayout.css";
 
 const AdminLayout = () => {
 
-  return (
-    <div className="admin-layout">
+const auth = useAuth();
+const navigate = useNavigate();
 
-      <div className="admin-sidebar">
+const handleLogout = () => {
+auth.logout();
+navigate("/login");
+};
 
-        <h2 className="admin-logo">Admin Panel</h2>
+return (
 
-        <NavLink to="/admin/dashboard">
-          Dashboard
-        </NavLink>
+<div className="admin-layout">
 
-        <NavLink to="/admin/leave-approvals">
-          Leave Approvals
-        </NavLink>
-        <NavLink to="/admin/employees">
-  Employees
-</NavLink>
-        <NavLink to="/admin/resignations">
-          Resignations
-        </NavLink>
+  <div className="admin-sidebar">
 
-        <NavLink to="/admin/register-employee">
-          Register Employee
-        </NavLink>
+    <h2 className="admin-logo">Admin Panel</h2>
 
-        <NavLink to="/admin/configuration">
-          Configuration
-        </NavLink>
+    <NavLink to="/admin/dashboard" end>
+      Dashboard
+    </NavLink>
 
-      </div>
+    <NavLink to="/admin/leave-approvals">
+      Leave Approvals
+    </NavLink>
 
-      <div className="admin-content">
-        <Outlet />
-      </div>
+    <NavLink to="/admin/employees">
+      Employees
+    </NavLink>
 
-    </div>
-  );
+    <NavLink to="/admin/resignations">
+      Resignations
+    </NavLink>
+
+    <NavLink to="/admin/register-employee">
+      Register Employee
+    </NavLink>
+
+    <NavLink to="/admin/configuration">
+      Configuration
+    </NavLink>
+
+    <button className="logout-btn" onClick={handleLogout}>
+      Logout
+    </button>
+
+  </div>
+
+  <div className="admin-content">
+    <Outlet />
+  </div>
+
+</div>
+
+
+);
 
 };
 

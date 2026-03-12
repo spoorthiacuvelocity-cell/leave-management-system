@@ -1,135 +1,199 @@
 import { useEffect, useState } from "react";
-import {
-  getPendingResignations,
-  approveResignation,
-  rejectResignation
-} from "../../api/resignationApi";
+import axios from "axios";
 
 const AdminResignations = () => {
-  const [resignations, setResignations] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  // 🔥 Fetch Pending Resignations
-  const fetchResignations = async () => {
-    try {
-      const res = await getPendingResignations();
-      setResignations(res.data);   // IMPORTANT
-    } catch (error) {
-      console.error("Failed to fetch resignations", error);
-    } finally {
-      setLoading(false);
+const [employees, setEmployees] = useState([]);
+const [selectedUser, setSelectedUser] = useState("");
+const [noticeDays, setNoticeDays] = useState("");
+const [reason, setReason] = useState("");
+
+const token = localStorage.getItem("token");
+
+useEffect(() => {
+fetchEmployees();
+}, []);
+
+const fetchEmployees = async () => {
+try {
+const res = await axios.get(
+"http://localhost:8000/admin/employees",
+{
+headers: {
+Authorization: `Bearer ${token}`
+}
+}
+);
+
+  setEmployees(res.data);
+
+} catch (error) {
+  console.error(error);
+}
+
+
+};
+
+const handleSubmit = async (e) => {
+
+e.preventDefault();
+
+try {
+
+  const res = await axios.post(
+    "http://localhost:8000/admin/mark-resigned",
+    {
+      user_id: parseInt(selectedUser),
+      notice_days: parseInt(noticeDays),
+      reason: reason
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
     }
-  };
-
-  useEffect(() => {
-    fetchResignations();
-  }, []);
-
-  // 🔥 Approve
-  const handleApprove = async (id) => {
-    try {
-      await approveResignation(id);
-      fetchResignations(); // refresh list
-    } catch (error) {
-      console.error("Approve failed", error);
-    }
-  };
-
-  // 🔥 Reject
-  const handleReject = async (id) => {
-    try {
-      await rejectResignation(id);
-      fetchResignations(); // refresh list
-    } catch (error) {
-      console.error("Reject failed", error);
-    }
-  };
-
-  if (loading) return <p style={{ padding: "40px" }}>Loading...</p>;
-
-  return (
-    <div style={{ padding: "40px" }}>
-      <h2>Pending Resignations</h2>
-
-      {resignations.length === 0 ? (
-        <p style={{ marginTop: "20px" }}>No pending resignations.</p>
-      ) : (
-        <table
-          style={{
-            marginTop: "20px",
-            borderCollapse: "collapse",
-            width: "100%"
-          }}
-        >
-          <thead>
-            <tr style={{ backgroundColor: "#f5f5f5" }}>
-              <th style={thStyle}>Employee Name</th>
-              <th style={thStyle}>Email</th>
-              <th style={thStyle}>Applied On</th>
-              <th style={thStyle}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {resignations.map((emp) => (
-              <tr key={emp.id}>
-                <td style={tdStyle}>{emp.name}</td>
-                <td style={tdStyle}>{emp.email}</td>
-                <td style={tdStyle}>
-                  {emp.resignation_date
-                    ? new Date(emp.resignation_date).toLocaleDateString()
-                    : "—"}
-                </td>
-                <td style={tdStyle}>
-                  <button
-                    style={approveBtn}
-                    onClick={() => handleApprove(emp.id)}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    style={rejectBtn}
-                    onClick={() => handleReject(emp.id)}
-                  >
-                    Reject
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
   );
+
+  alert(res.data.message);
+
+  setSelectedUser("");
+  setNoticeDays("");
+  setReason("");
+
+} catch (error) {
+
+  alert(error.response?.data?.detail || "Something went wrong");
+
+}
+
+
 };
 
-const thStyle = {
-  padding: "12px",
-  textAlign: "left",
-  borderBottom: "1px solid #ddd"
+return (
+
+<div style={styles.container}>
+
+  <div style={styles.card}>
+
+    <h2 style={styles.title}>
+      Resignation Management
+    </h2>
+
+    <form onSubmit={handleSubmit}>
+
+      <div style={styles.field}>
+        <label>Select Employee / Manager</label>
+
+        <select
+          value={selectedUser}
+          onChange={(e) => setSelectedUser(e.target.value)}
+          style={styles.input}
+          required
+        >
+
+          <option value="">Select Employee</option>
+
+          {employees.map((emp) => (
+            <option key={emp.id} value={emp.id}>
+              {emp.name} ({emp.role})
+            </option>
+          ))}
+
+        </select>
+      </div>
+
+      <div style={styles.field}>
+        <label>Notice Period (Days)</label>
+
+        <input
+          type="number"
+          value={noticeDays}
+          onChange={(e) => setNoticeDays(e.target.value)}
+          style={styles.input}
+          required
+        />
+      </div>
+
+      <div style={styles.field}>
+        <label>Reason</label>
+
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          style={styles.textarea}
+        />
+      </div>
+
+      <button type="submit" style={styles.button}>
+        Mark Resigned
+      </button>
+
+    </form>
+
+  </div>
+
+</div>
+
+
+);
 };
 
-const tdStyle = {
-  padding: "12px",
-  borderBottom: "1px solid #eee"
-};
+const styles = {
 
-const approveBtn = {
-  backgroundColor: "#4CAF50",
-  color: "white",
-  border: "none",
-  padding: "6px 12px",
-  marginRight: "10px",
-  cursor: "pointer",
-  borderRadius: "4px"
-};
+container: {
+display: "flex",
+justifyContent: "center",
+alignItems: "center",
+height: "80vh",
+background: "#f4f6f9"
+},
 
-const rejectBtn = {
-  backgroundColor: "#EF5350",
-  color: "white",
-  border: "none",
-  padding: "6px 12px",
-  cursor: "pointer",
-  borderRadius: "4px"
+card: {
+background: "white",
+padding: "30px",
+borderRadius: "10px",
+width: "420px",
+boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
+},
+
+title: {
+textAlign: "center",
+fontWeight: "600",
+marginBottom: "25px",
+color: "#1e293b"
+},
+
+field: {
+display: "flex",
+flexDirection: "column",
+marginBottom: "15px"
+},
+
+input: {
+padding: "8px",
+borderRadius: "6px",
+border: "1px solid #ccc",
+marginTop: "5px"
+},
+
+textarea: {
+padding: "8px",
+borderRadius: "6px",
+border: "1px solid #ccc",
+marginTop: "5px"
+},
+
+button: {
+width: "100%",
+padding: "10px",
+background: "#2563eb",
+color: "white",
+border: "none",
+borderRadius: "6px",
+cursor: "pointer",
+fontWeight: "bold"
+}
+
 };
 
 export default AdminResignations;

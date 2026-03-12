@@ -5,10 +5,10 @@ import pytz
 
 from backend.app.models.leave_request import LeaveRequest
 from backend.app.models.leave_balance import LeaveBalance
-from backend.app.models.user import User   # 🔹 added
+from backend.app.models.user import User
 
 
-# 🔥 IST timezone
+# IST timezone
 ist = pytz.timezone("Asia/Kolkata")
 
 
@@ -16,7 +16,13 @@ class ApprovalService:
 
     # ================= APPROVE =================
     @staticmethod
-    def approve_leave(db: Session, leave_id: int, approver_role: str, approver_id: int, remarks: str = None):
+    def approve_leave(
+        db: Session,
+        leave_id: int,
+        approver_role: str,
+        approver_id: int,
+        remarks: str = None
+    ):
 
         leave = db.query(LeaveRequest).filter(
             LeaveRequest.id == leave_id
@@ -28,7 +34,7 @@ class ApprovalService:
         if leave.status.lower() != "pending":
             raise HTTPException(status_code=400, detail="Leave already processed")
 
-        # 🔹 Check if manager is approving only their employees
+        # Manager hierarchy validation
         if approver_role.upper() == "MANAGER":
 
             employee = db.query(User).filter(
@@ -57,19 +63,25 @@ class ApprovalService:
                 detail="Leave balance not initialized for this quarter"
             )
 
-        leave_days = leave.number_of_days or 0
+        leave_days = float(leave.number_of_days or 0)
 
-        if leave_days > balance.remaining_leaves:
+        if leave_days <= 0:
             raise HTTPException(
                 status_code=400,
-                detail="Insufficient leave balance at approval stage"
+                detail="Invalid leave duration"
             )
 
-        # ✅ Deduct Leave
-        balance.leaves_taken += leave_days
-        balance.remaining_leaves -= leave_days
+        if leave_days > float(balance.remaining_leaves):
+            raise HTTPException(
+                status_code=400,
+                detail="Insufficient leave balance"
+            )
 
-        # ✅ Update Leave Tracking
+        # Deduct leave balance
+        balance.leaves_taken = float(balance.leaves_taken) + leave_days
+        balance.remaining_leaves = float(balance.remaining_leaves) - leave_days
+
+        # Update leave record
         leave.status = "Approved"
         leave.approved_by = approver_id
         leave.approved_by_role = approver_role
@@ -83,7 +95,13 @@ class ApprovalService:
 
     # ================= REJECT =================
     @staticmethod
-    def reject_leave(db: Session, leave_id: int, approver_role: str, approver_id: int, remarks: str = None):
+    def reject_leave(
+        db: Session,
+        leave_id: int,
+        approver_role: str,
+        approver_id: int,
+        remarks: str = None
+    ):
 
         leave = db.query(LeaveRequest).filter(
             LeaveRequest.id == leave_id
@@ -95,7 +113,7 @@ class ApprovalService:
         if leave.status.lower() != "pending":
             raise HTTPException(status_code=400, detail="Leave already processed")
 
-        # 🔹 Manager hierarchy check
+        # Manager hierarchy validation
         if approver_role.upper() == "MANAGER":
 
             employee = db.query(User).filter(
@@ -134,16 +152,23 @@ class ApprovalService:
             raise HTTPException(status_code=403, detail="Not authorized")
 
         if leave.status == "Rejected":
-            raise HTTPException(status_code=400, detail="Cannot cancel rejected leave")
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot cancel rejected leave"
+            )
 
         if leave.status == "Cancelled":
-            raise HTTPException(status_code=400, detail="Leave already cancelled")
+            raise HTTPException(
+                status_code=400,
+                detail="Leave already cancelled"
+            )
 
-        # ✅ Restore balance if already approved
+        # Restore balance if approved leave is cancelled
         if leave.status == "Approved":
 
             year = leave.start_date.year
             quarter = (leave.start_date.month - 1) // 3 + 1
+            leave_days = float(leave.number_of_days or 0)
 
             balance = db.query(LeaveBalance).filter(
                 LeaveBalance.user_id == leave.user_id,
@@ -153,8 +178,13 @@ class ApprovalService:
             ).first()
 
             if balance:
-                balance.leaves_taken -= leave.number_of_days
-                balance.remaining_leaves += leave.number_of_days
+
+                balance.leaves_taken = max(
+                    0,
+                    float(balance.leaves_taken) - leave_days
+                )
+
+                balance.remaining_leaves = float(balance.remaining_leaves) + leave_days
 
         leave.status = "Cancelled"
 

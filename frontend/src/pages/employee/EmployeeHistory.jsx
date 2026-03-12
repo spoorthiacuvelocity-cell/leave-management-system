@@ -15,8 +15,8 @@ const EmployeeHistory = () => {
 
       const response = await getMyLeaves();
 
-      if (Array.isArray(response.data)) {
-        setLeaveRequests(response.data);
+      if (Array.isArray(response)) {
+        setLeaveRequests(response);
       } else {
         setLeaveRequests([]);
       }

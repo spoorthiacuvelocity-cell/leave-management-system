@@ -1,48 +1,58 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./ManagerLayout.css";
 
 const ManagerLayout = () => {
 
-  return (
-    <div className="manager-layout">
+const { logout } = useAuth();
+const navigate = useNavigate();
 
-      <div className="manager-sidebar">
+const handleLogout = () => {
+logout();
+navigate("/login");
+};
 
-        <h2 className="manager-logo">Manager Panel</h2>
+return (
 
-        <NavLink to="/manager/dashboard">
-          Dashboard
-        </NavLink>
+<div className="manager-layout">
 
-        <NavLink to="/manager/apply-leave">
-          Apply Leave
-        </NavLink>
+  <div className="manager-sidebar">
 
-        <NavLink to="/manager/leave-history">
-          Leave History
-        </NavLink>
+    <h2 className="manager-logo">Manager Panel</h2>
 
-        <NavLink to="/manager/leave-balance">
-          Leave Balance
-        </NavLink>
+    <NavLink to="/manager/dashboard" end>
+      Dashboard
+    </NavLink>
 
-        <NavLink to="/manager/resignation">
-          Resignation
-        </NavLink>
+    <NavLink to="/manager/apply-leave">
+      Apply Leave
+    </NavLink>
 
-        <NavLink to="/manager/approvals">
-          Leave Approvals
-        </NavLink>
+    <NavLink to="/manager/leave-history">
+      Leave History
+    </NavLink>
 
-      </div>
+    <NavLink to="/manager/leave-balance">
+      Leave Balance
+    </NavLink>
 
-      <div className="manager-content">
-        <Outlet />
-      </div>
+    <NavLink to="/manager/approvals">
+      Leave Approvals
+    </NavLink>
 
-    </div>
+    <button className="logout-btn" onClick={handleLogout}>
+      Logout
+    </button>
 
-  );
+  </div>
+
+  <div className="manager-content">
+    <Outlet />
+  </div>
+
+</div>
+
+);
 
 };
 

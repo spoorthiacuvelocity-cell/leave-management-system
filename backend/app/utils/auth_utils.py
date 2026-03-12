@@ -20,28 +20,38 @@ def hash_password(password: str):
 
 
 def verify_password(plain_password: str, hashed_password: str):
-    return pwd_context.verify(plain_password, hashed_password)
+    # 🔹 Prevent crash if password in DB is invalid
+    if not hashed_password:
+        return False
+
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        return False
 
 
 # ================= OAUTH2 =================
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
-# ================= CREATE ACCESS TOKEN =================
+# ================= TOKEN EXPIRY =================
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
+# ================= CREATE ACCESS TOKEN =================
 def create_access_token(data: dict):
     to_encode = data.copy()
 
-    # 🔥 Always store sub as string
+    # Ensure subject is string
     if "sub" in to_encode:
         to_encode["sub"] = str(to_encode["sub"])
 
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
 
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+    return encoded_jwt
 
 
 # ================= GET CURRENT USER =================
@@ -49,6 +59,7 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ):
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not authenticated",
@@ -62,7 +73,6 @@ def get_current_user(
         if user_id is None:
             raise credentials_exception
 
-        # 🔥 Convert safely to int
         user_id = int(user_id)
 
     except (JWTError, ValueError):
@@ -73,14 +83,14 @@ def get_current_user(
     if user is None:
         raise credentials_exception
 
-    # 🔥 Block resigned users
+    # 🔹 Block resigned users
     if user.resignation_status == "APPROVED":
-         raise HTTPException(
-        status_code=403,
-             detail="Your resignation has been approved. Please contact HR."
+        raise HTTPException(
+            status_code=403,
+            detail="Your resignation has been approved. Please contact HR."
         )
 
-    # 🔥 Block inactive users
+    # 🔹 Block inactive users
     if not user.is_active:
         raise HTTPException(
             status_code=403,
@@ -92,7 +102,9 @@ def get_current_user(
 
 # ================= HELPER FUNCTION =================
 def get_config(db: Session, key: str):
+
     config = db.query(Configuration).filter(
         Configuration.config_parameter == key
     ).first()
+
     return config.config_value if config else None
